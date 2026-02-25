@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+:root {
+    /* Core Palette */
+    --gold: #D4AF37;
+    --gold-vibrant: #FFD700;
+    --gold-glow: rgba(212, 175, 55, 0.2);
+    --brown-deep: #1A0F0E;
+    --brown-rich: #3E2723;
+    --chocolate: #2b1d1d;
+    --grey-luxury: #F4F4F4;
+    --white-pure: #FFFFFF;
+    --black-inverse: #030303;
+
+    /* Next-Grade Tokens */
+    --pill: 9999px;
+    --transition-luxe: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    --shadow-luxe: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+    --shadow-glow: 0 0 25px var(--gold-glow);
+}
+
+@layer base {
+    body {
+        @apply font-sans antialiased bg-white text-zinc-900;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    .font-serif {
+        @apply font-serif;
+    }
+}
+
+@layer components {
+
+    /* The "Google-Style" Search Input */
+    .search-pill-container {
+        @apply flex items-center bg-grey-luxury border border-transparent rounded-pill px-6 py-3.5 transition-all duration-500 shadow-sm overflow-hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+    }
+
+    .search-pill-container:focus-within {
+        @apply bg-white border-gold shadow-lg scale-[1.02];
+        box-shadow: 0 10px 30px -5px var(--gold-glow);
+    }
+
+    /* Glowing Alive Buttons */
+    .btn-elite {
+        @apply relative overflow-hidden inline-flex items-center justify-center rounded-pill px-10 py-4 font-bold tracking-wide transition-all duration-500 active:scale-95;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-elite-primary {
+        @apply bg-brown-rich text-white;
+    }
+
+    .btn-elite-primary:hover {
+        @apply bg-brown-deep -translate-y-1;
+        box-shadow: 0 15px 35px -10px rgba(62, 39, 35, 0.4);
+    }
+
+    .btn-elite-gold {
+        @apply bg-gold text-white;
+    }
+
+    .btn-elite-gold:hover {
+        @apply -translate-y-1;
+        box-shadow: 0 15px 35px -10px var(--gold-glow), 0 0 15px var(--gold-glow);
+    }
+
+    /* Product Card Elite */
+    .product-card-elite {
+        @apply group relative bg-white rounded-[32px] p-5 border border-zinc-100 transition-all duration-700 hover:border-gold/30;
+    }
+
+    .product-card-elite:hover {
+        @apply -translate-y-3;
+        box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.12);
+    }
+
+    .img-glow-wrapper {
+        @apply relative aspect-square bg-grey-luxury rounded-[24px] flex items-center justify-center p-8 overflow-hidden transition-all duration-700;
+    }
+
+    .product-card-elite:hover .img-glow-wrapper {
+        @apply bg-white;
+        box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Tints & Overlays */
+    .gold-tint {
+        @apply absolute inset-0 bg-gradient-to-tr from-gold/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700;
+    }
+
+    /* Floating UI Elements */
+    .glass-nav {
+        @apply sticky top-0 z-[100] bg-white/70 backdrop-blur-2xl border-b border-zinc-100/50 py-4 transition-all duration-500;
+    }
+
+    .glass-nav.scrolled {
+        @apply py-2 bg-white/90 shadow-lg;
+    }
+}
+
+/* Custom Micro-animations */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.alive-glow {
+    position: relative;
+}
+
+.alive-glow::after {
+    content: '';
+    @apply absolute -inset-1 bg-gold opacity-0 blur-xl transition-opacity duration-500 rounded-pill -z-10;
+}
+
+.alive-glow:hover::after {
+    @apply opacity-20;
+}

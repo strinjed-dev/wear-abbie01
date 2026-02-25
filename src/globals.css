@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Wear Abbie Elite - Next-Grade Luxury Styles */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap');
+
+:root {
+    /* Color Palette */
+    --gold: #D4AF37;
+    --gold-glow: rgba(212, 175, 55, 0.4);
+    --brown-rich: #3E2723;
+    --brown-light: #5D4037;
+    --grey-luxury: #F5F5F7;
+    --white: #FFFFFF;
+    --black-inverse: #121212;
+    --text-main: #2C2C2C;
+    --text-muted: #6E6E73;
+
+    /* Effects */
+    --pill-radius: 9999px;
+    --shadow-alive: 0 10px 20px rgba(0, 0, 0, 0.05), 0 6px 6px rgba(0, 0, 0, 0.05);
+    --shadow-gold-glow: 0 15px 30px var(--gold-glow);
+    --transition-smooth: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--white);
+    color: var(--text-main);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Fallback Layout Utility (if Tailwind fails) */
+.container {
+    width: 100%;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+}
+
+.font-serif {
+    font-family: 'Playfair Display', serif;
+}
+
+/* --- Navigation --- */
+.glass-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 15px 0;
+    transition: var(--transition-smooth);
+}
+
+/* --- Pill & Glow Components --- */
+
+.search-pill {
+    background: var(--grey-luxury);
+    border: 1px solid transparent;
+    border-radius: var(--pill-radius);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    transition: var(--transition-smooth);
+}
+
+.search-pill:focus-within {
+    background: var(--white);
+    border-color: var(--gold);
+    box-shadow: var(--shadow-gold-glow);
+}
+
+.btn-pill {
+    background: var(--brown-rich);
+    color: var(--white);
+    border: none;
+    border-radius: var(--pill-radius);
+    padding: 12px 30px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.btn-gold {
+    background: var(--gold);
+}
+
+.btn-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-gold-glow);
+    filter: brightness(1.1);
+}
+
+/* Product Cards */
+.product-card-elite {
+    background: var(--white);
+    border-radius: 30px;
+    padding: 15px;
+    transition: var(--transition-smooth);
+    border: 1px solid #f0f0f0;
+    position: relative;
+}
+
+.product-card-elite:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+    border-color: var(--gold);
+}
+
+.product-image-container {
+    background-color: var(--grey-luxury);
+    border-radius: 20px;
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- Trust Stats --- */
+.stat-card {
+    background: white;
+    padding: 40px;
+    border-radius: 40px;
+    border: 1px solid #f0f0f0;
+    transition: var(--transition-smooth);
+}
+
+.stat-card:hover {
+    border-color: var(--gold);
+    box-shadow: var(--shadow-gold-glow);
+}
+
+/* Animations */
+@keyframes glow-pulse {
+    0% {
+        box-shadow: 0 0 5px var(--gold-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--gold-glow);
+    }
+
+    100% {
+        box-shadow: 0 0 5px var(--gold-glow);
+    }
+}
+
+.alive-glow {
+    animation: glow-pulse 3s infinite ease-in-out;
+}
+
+/* Utilities */
+.text-gold {
+    color: var(--gold);
+}
+
+.bg-gold {
+    background-color: var(--gold);
+}
+
+.bg-brown-rich {
+    background-color: var(--brown-rich);
+}

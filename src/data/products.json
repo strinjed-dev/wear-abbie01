@@ -1,0 +1,587 @@
+[
+  {
+    "id": "asad-lattafa-30ml",
+    "name": "Asad Lattafa (30ml)",
+    "image": "/perfumes/asad-lattafa-30ml.png",
+    "price": 15000,
+    "description": "Premium fragrance experience - Asad Lattafa (30ml)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "storm-and-confetti-london-body-sprays",
+    "name": "Storm and Confetti London Body Sprays",
+    "image": "/perfumes/storm-and-confetti-london-body-sprays.png",
+    "price": 4500,
+    "description": "Premium fragrance experience - Storm and Confetti London Body Sprays",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "barakkat-rouge-540-maison-alhambra",
+    "name": "Barakkat Rouge 540 (Maison Alhambra)",
+    "image": "/perfumes/barakkat-rouge-540-maison-alhambra.png",
+    "price": 15000,
+    "description": "Premium fragrance experience - Barakkat Rouge 540 (Maison Alhambra)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "kamrah-smart-moon",
+    "name": "Kamrah (Smart Moon)",
+    "image": "/perfumes/kamrah-smart-moon.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Kamrah (Smart Moon)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "ameer-al-oud-intense-oud-lattafa",
+    "name": "Ameer Al Oud Intense Oud (Lattafa)",
+    "image": "/perfumes/ameer-al-oud-intense-oud-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Ameer Al Oud Intense Oud (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "imperio-way",
+    "name": "Imperio Way",
+    "image": "/perfumes/imperio-way.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Imperio Way",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "jaidora-elizabeth-anthony-paris",
+    "name": "Jaidora (Elizabeth Anthony Paris)",
+    "image": "/perfumes/jaidora-elizabeth-anthony-paris.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Jaidora (Elizabeth Anthony Paris)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "cocktail-intense-fragrance-world",
+    "name": "Cocktail Intense (Fragrance World)",
+    "image": "/perfumes/cocktail-intense-fragrance-world.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Cocktail Intense (Fragrance World)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "lamsa-naseem",
+    "name": "Lamsa (Naseem)",
+    "image": "/perfumes/lamsa-naseem.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Lamsa (Naseem)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "teriaq-lattafa",
+    "name": "Teriaq (Lattafa)",
+    "image": "/perfumes/teriaq-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Teriaq (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "rifaaqat-paris-corner",
+    "name": "Rifaaqat (Paris Corner)",
+    "image": "/perfumes/rifaaqat-paris-corner.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Rifaaqat (Paris Corner)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "gk-men",
+    "name": "GK Men",
+    "image": "/perfumes/gk-men.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - GK Men",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "shamokhi",
+    "name": "Shamokhi",
+    "image": "/perfumes/shamokhi.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Shamokhi",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "rayhaan-corium",
+    "name": "Rayhaan Corium",
+    "image": "/perfumes/rayhaan-corium.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Rayhaan Corium",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "eternity-for-men",
+    "name": "Eternity for Men",
+    "image": "/perfumes/eternity-for-men.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Eternity for Men",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "maahir-black-edition-lattafa",
+    "name": "Maahir Black Edition (Lattafa)",
+    "image": "/perfumes/maahir-black-edition-lattafa.png",
+    "price": 15000,
+    "description": "Premium fragrance experience - Maahir Black Edition (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "qaed-al-fursan-lattafa",
+    "name": "Qaed Al Fursan (Lattafa)",
+    "image": "/perfumes/qaed-al-fursan-lattafa.png",
+    "price": 15000,
+    "description": "Premium fragrance experience - Qaed Al Fursan (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "storm-for-men-body-spray-collection",
+    "name": "Storm for Men Body Spray Collection",
+    "image": "/perfumes/storm-for-men-body-spray-collection.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Storm for Men Body Spray Collection",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "hug-perfume",
+    "name": "HUG Perfume",
+    "image": "/perfumes/hug-perfume.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - HUG Perfume",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "sweet-candy-collection",
+    "name": "Sweet Candy Collection",
+    "image": "/perfumes/sweet-candy-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Sweet Candy Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "hummer-vip",
+    "name": "Hummer VIP",
+    "image": "/perfumes/hummer-vip.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Hummer VIP",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "24k-pure-gold-lattafa",
+    "name": "24K Pure Gold (Lattafa)",
+    "image": "/perfumes/24k-pure-gold-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - 24K Pure Gold (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "crystal-angel-milestone-perfumes",
+    "name": "Crystal Angel (Milestone Perfumes)",
+    "image": "/perfumes/crystal-angel-milestone-perfumes.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Crystal Angel (Milestone Perfumes)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "aventos-blue-for-him-fragrance-world",
+    "name": "Aventos Blue for Him (Fragrance World)",
+    "image": "/perfumes/aventos-blue-for-him-fragrance-world.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Aventos Blue for Him (Fragrance World)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "vx-love-futuristic-girl-collection",
+    "name": "VX Love Futuristic Girl Collection",
+    "image": "/perfumes/vx-love-futuristic-girl-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - VX Love Futuristic Girl Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "matelot-eau-de-parfum",
+    "name": "Matelot Eau de Parfum",
+    "image": "/perfumes/matelot-eau-de-parfum.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Matelot Eau de Parfum",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "la-robe-fatale-collection",
+    "name": "La Robe Fatale Collection",
+    "image": "/perfumes/la-robe-fatale-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - La Robe Fatale Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "oud-al-layl-arabiyat",
+    "name": "Oud Al Layl (Arabiyat)",
+    "image": "/perfumes/oud-al-layl-arabiyat.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Oud Al Layl (Arabiyat)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "storm-kids-body-spray",
+    "name": "Storm Kids Body Spray",
+    "image": "/perfumes/storm-kids-body-spray.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Storm Kids Body Spray",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "nivea-men-roll-on-selection",
+    "name": "Nivea Men Roll-on Selection",
+    "image": "/perfumes/nivea-men-roll-on-selection.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Nivea Men Roll-on Selection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "hayaati-lattafa",
+    "name": "Hayaati (Lattafa)",
+    "image": "/perfumes/hayaati-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Hayaati (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "oniro-collection",
+    "name": "Oniro Collection",
+    "image": "/perfumes/oniro-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Oniro Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "najdia-lattafa",
+    "name": "Najdia (Lattafa)",
+    "image": "/perfumes/najdia-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Najdia (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "yara-lattafa-50ml",
+    "name": "Yara (Lattafa) 50ml",
+    "image": "/perfumes/yara-lattafa-50ml.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Yara (Lattafa) 50ml",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "liquid-brun-fragrance-world",
+    "name": "Liquid Brun (Fragrance World)",
+    "image": "/perfumes/liquid-brun-fragrance-world.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Liquid Brun (Fragrance World)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "safwaan-l-autre-musk",
+    "name": "Safwaan (L'Autre Musk)",
+    "image": "/perfumes/safwaan-l-autre-musk.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Safwaan (L'Autre Musk)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "valar-series-walk-on-dirt",
+    "name": "Valar Series Walk on Dirt",
+    "image": "/perfumes/valar-series-walk-on-dirt.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Valar Series Walk on Dirt",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "mousuf-ard-al-zaafaran",
+    "name": "Mousuf (Ard Al Zaafaran)",
+    "image": "/perfumes/mousuf-ard-al-zaafaran.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Mousuf (Ard Al Zaafaran)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "ramz-lattafa",
+    "name": "Ramz Lattafa",
+    "image": "/perfumes/ramz-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Ramz Lattafa",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "veyes-collection",
+    "name": "Veyes Collection",
+    "image": "/perfumes/veyes-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Veyes Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "khair-confection-paris-corner",
+    "name": "Khair Confection (Paris Corner)",
+    "image": "/perfumes/khair-confection-paris-corner.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Khair Confection (Paris Corner)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "riggs-london-body-spray-collection",
+    "name": "Riggs London Body Spray Collection",
+    "image": "/perfumes/riggs-london-body-spray-collection.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Riggs London Body Spray Collection",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "qimmah-for-women-lattafa",
+    "name": "Qimmah for Women (Lattafa)",
+    "image": "/perfumes/qimmah-for-women-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Qimmah for Women (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "yara-pink-gift-set-box",
+    "name": "Yara Pink Gift Set Box",
+    "image": "/perfumes/yara-pink-gift-set-box.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Yara Pink Gift Set Box",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "9-pm-afnan",
+    "name": "9 PM (Afnan)",
+    "image": "/perfumes/9-pm-afnan.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - 9 PM (Afnan)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "emergency-eau-de-parfum-collection",
+    "name": "Emergency Eau de Parfum Collection",
+    "image": "/perfumes/emergency-eau-de-parfum-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Emergency Eau de Parfum Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "qaed-al-fursan-black-30ml",
+    "name": "Qaed Al Fursan Black (30ml)",
+    "image": "/perfumes/qaed-al-fursan-black-30ml.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Qaed Al Fursan Black (30ml)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "karamel-fragrance-avenue",
+    "name": "Karamel (Fragrance Avenue)",
+    "image": "/perfumes/karamel-fragrance-avenue.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Karamel (Fragrance Avenue)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "breed-black-spice",
+    "name": "Breed Black Spice",
+    "image": "/perfumes/breed-black-spice.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Breed Black Spice",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "nivea-pearl-and-beauty-roll-on",
+    "name": "Nivea Pearl and Beauty Roll-on",
+    "image": "/perfumes/nivea-pearl-and-beauty-roll-on.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Nivea Pearl and Beauty Roll-on",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "breed-strong-man",
+    "name": "Breed Strong Man",
+    "image": "/perfumes/breed-strong-man.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Breed Strong Man",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "asad-and-kamrah-perfume-oil-roll-ons",
+    "name": "Asad and Kamrah Perfume Oil Roll-ons",
+    "image": "/perfumes/asad-and-kamrah-perfume-oil-roll-ons.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Asad and Kamrah Perfume Oil Roll-ons",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "qaed-al-fursan-black-gold",
+    "name": "Qaed Al Fursan Black Gold",
+    "image": "/perfumes/qaed-al-fursan-black-gold.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Qaed Al Fursan Black Gold",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "smart-world-body-spray-selection",
+    "name": "Smart World Body Spray Selection",
+    "image": "/perfumes/smart-world-body-spray-selection.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Smart World Body Spray Selection",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "dove-go-fresh-body-sprays",
+    "name": "Dove Go Fresh Body Sprays",
+    "image": "/perfumes/dove-go-fresh-body-sprays.jpg",
+    "price": 4500,
+    "description": "Premium fragrance experience - Dove Go Fresh Body Sprays",
+    "category": "Body Spray",
+    "inStock": true
+  },
+  {
+    "id": "a-walk-on-dirt-emir",
+    "name": "A Walk On Dirt (Emir)",
+    "image": "/perfumes/a-walk-on-dirt-emir.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - A Walk On Dirt (Emir)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "al-fursan-wardi",
+    "name": "Al Fursan Wardi",
+    "image": "/perfumes/al-fursan-wardi.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Al Fursan Wardi",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "mayar-hayaati-and-yara-mini-collection",
+    "name": "Mayar Hayaati and Yara Mini Collection",
+    "image": "/perfumes/mayar-hayaati-and-yara-mini-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Mayar Hayaati and Yara Mini Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "khumar-collection",
+    "name": "Khumar Collection",
+    "image": "/perfumes/khumar-collection.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Khumar Collection",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "smoky-leather-valar-series",
+    "name": "Smoky Leather (Valar Series)",
+    "image": "/perfumes/smoky-leather-valar-series.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Smoky Leather (Valar Series)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "bint-hooran-ard-al-zaafaran",
+    "name": "Bint Hooran (Ard Al Zaafaran)",
+    "image": "/perfumes/bint-hooran-ard-al-zaafaran.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Bint Hooran (Ard Al Zaafaran)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "oud-noir-khadlaj",
+    "name": "Oud Noir (Khadlaj)",
+    "image": "/perfumes/oud-noir-khadlaj.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Oud Noir (Khadlaj)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "asad-zanzibar-lattafa",
+    "name": "Asad Zanzibar (Lattafa)",
+    "image": "/perfumes/asad-zanzibar-lattafa.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - Asad Zanzibar (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "24k-white-and-rouge-edition",
+    "name": "24K White and Rouge Edition",
+    "image": "/perfumes/24k-white-and-rouge-edition.jpg",
+    "price": 15000,
+    "description": "Premium fragrance experience - 24K White and Rouge Edition",
+    "category": "Eau de Parfum",
+    "inStock": true
+  },
+  {
+    "id": "rave-now-lattafa",
+    "name": "Rave Now (Lattafa)",
+    "image": "/perfumes/rave-now-lattafa.png",
+    "price": 15000,
+    "description": "Premium fragrance experience - Rave Now (Lattafa)",
+    "category": "Eau de Parfum",
+    "inStock": true
+  }
+]
