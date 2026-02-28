@@ -202,7 +202,7 @@ export default function CheckoutPage() {
                                         >
                                             <div className="flex items-center gap-6 w-full mb-4">
                                                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl p-3 overflow-hidden border-2 border-[#6F3AF9]/20 group-hover:scale-105 transition-transform">
-                                                    <img src="/palmpay_logo.png" alt="PalmPay" className="w-full h-full object-contain" />
+                                                    <img src="/palmpay.webp" alt="PalmPay" className="w-full h-full object-contain" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex items-center justify-between">
