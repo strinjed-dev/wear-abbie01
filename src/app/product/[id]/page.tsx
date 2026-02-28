@@ -37,20 +37,23 @@ export default function ProductDetailPage() {
     }, [id]);
 
     const handleAddToCart = () => {
-        if (!product) return;
-        for (let i = 0; i < quantity; i++) {
-            addToCart({
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                category: product.category,
-                image: product.image,
-                description: product.description || '',
-            });
-        }
-        setAddedFeedback(true);
-        setTimeout(() => setAddedFeedback(false), 2000);
-    };
+    if (!product) return;
+
+    for (let i = 0; i < quantity; i++) {
+        addToCart({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            category: product.category,
+            image: product.image,
+            inStock: product.inStock,
+            description: product.description || '',
+        });
+    }
+
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 2000);
+};
 
     if (isLoading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
