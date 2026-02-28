@@ -103,29 +103,21 @@ export default function ProfilePage() {
                                     {userDisplay.orders.map((order, i) => (
                                         <div key={i} className="bg-white p-8 md:p-10 rounded-[40px] border border-zinc-100 shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all group cursor-pointer">
                                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="w-16 h-16 bg-zinc-50 rounded-[20px] flex items-center justify-center text-zinc-200 group-hover:bg-[#D4AF37]/5 group-hover:text-[#D4AF37] transition-all">
-                                                        <Package className="w-8 h-8" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-3 mb-1">
-                                                            <span className="font-black text-sm uppercase tracking-tight">{order.id}</span>
-                                                            <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${order.status === 'In Transit' ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : 'bg-emerald-50 text-emerald-500'}`}>
-                                                                {order.status}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{order.date} • {order.items} Items</p>
-                                                    </div>
+
+                                                <div>
+                                                    <span className="font-black text-sm uppercase tracking-tight">
+                                                        {order.id}
+                                                    </span>
+
+                                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                                                        {order.date} • {order.items.length} Items
+                                                    </p>
                                                 </div>
-                                                <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-6 md:pt-0">
-                                                    <div className="text-right">
-                                                        <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Total Investment</p>
-                                                        <p className="font-black text-xl">{order.total}</p>
-                                                    </div>
-                                                    <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center group-hover:bg-[#3E2723] group-hover:text-white transition-all">
-                                                        <ChevronRight className="w-5 h-5" />
-                                                    </div>
-                                                </div>
+
+                                                <p className="font-black text-xl">
+                                                    {order.total}
+                                                </p>
+
                                             </div>
                                         </div>
                                     ))}
