@@ -1,26 +1,48 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ArrowLeft, Sparkles, User, Mail, Lock, CheckCircle2, ShoppingBag, ArrowRight, Instagram, Facebook, Twitter, Chrome, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Sparkles, User, Mail, Lock, CheckCircle2, ShoppingBag, ArrowRight, Chrome } from 'lucide-react';
 import { signInWithGoogle, supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 // --- Monolithic Auth Component ---
 export default function AuthPage() {
-    const [mode, setMode] = useState<'login' | 'signup'>('login');
+    const [mode, setMode] = useState<'login' | 'signup' | 'forgot_password'>('login');
     const [isLoading, setIsLoading] = useState(false);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [authError, setAuthError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.push('/dashboard');
+            }
+        };
+        checkSession();
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
+
         setIsLoading(true);
         setAuthError('');
+        setIsSuccess(false);
 
         try {
-            if (mode === 'signup') {
+            if (mode === 'forgot_password') {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth?reset=true`,
+                });
+                if (error) throw error;
+                setAuthError('Password reset link sent to your email.');
+            } else if (mode === 'signup') {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
@@ -32,7 +54,9 @@ export default function AuthPage() {
                 });
                 if (error) throw error;
                 if (data.user) {
-                    window.location.href = '/dashboard';
+                    setIsSuccess(true);
+                    // Small delay to ensure session is recognized
+                    setTimeout(() => router.push('/dashboard'), 1000);
                 }
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({
@@ -40,12 +64,16 @@ export default function AuthPage() {
                     password,
                 });
                 if (error) throw error;
-                if (data.user) {
+                if (data.user && data.session) {
+                    setIsSuccess(true);
+                    window.location.href = '/dashboard';
+                } else if (data.user) {
                     window.location.href = '/dashboard';
                 }
             }
         } catch (error: any) {
-            setAuthError(error.message || 'Authentication failed');
+            console.error("Auth Exception:", error);
+            setAuthError(error.message || 'Authentication failed. Please check your credentials.');
         } finally {
             setIsLoading(false);
         }
@@ -118,9 +146,9 @@ export default function AuthPage() {
                 </div>
 
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-8">
-                    <Instagram className="w-5 h-5 text-white/20 hover:text-[#D4AF37] transition-all cursor-pointer" />
-                    <Facebook className="w-5 h-5 text-white/20 hover:text-[#D4AF37] transition-all cursor-pointer" />
-                    <Twitter className="w-5 h-5 text-white/20 hover:text-[#D4AF37] transition-all cursor-pointer" />
+                    <a href="https://www.tiktok.com/@wearabbie" target="_blank" rel="noopener noreferrer" className="text-white/20 hover:text-[#D4AF37] transition-all">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.88a8.28 8.28 0 004.84 1.54V7a4.85 4.85 0 01-1.07-.31z" /></svg>
+                    </a>
                 </div>
             </div>
 
@@ -134,17 +162,22 @@ export default function AuthPage() {
                     <div className="mb-12">
                         <img src="/logo.png" alt="Wear Abbie" className="h-10 mb-8 lg:hidden" />
                         <h3 className="text-4xl font-serif font-black mb-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                            {mode === 'login' ? 'Welcome Back' : 'Join the Elite'}
+                            {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Join the Elite' : 'Reset Password'}
                         </h3>
                         <p className="text-zinc-400 font-medium">
-                            {mode === 'login' ? 'Enter your details to access your account' : 'Register to begin your signature scent collection'}
+                            {mode === 'login' ? 'Enter your details to access your account' : mode === 'signup' ? 'Register to begin your signature scent collection' : 'Enter your registered email to receive a password reset link.'}
                         </p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {authError && (
-                            <div className="bg-red-50 text-red-500 p-4 rounded-xl text-xs font-bold text-center">
+                            <div className="p-4 rounded-xl text-xs font-bold text-center bg-red-50 text-red-500 animate-in">
                                 {authError}
+                            </div>
+                        )}
+                        {isSuccess && (
+                            <div className="p-4 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-500 animate-in">
+                                Authenticated Successfully. Redirecting to your dashboard...
                             </div>
                         )}
                         {mode === 'signup' && (
@@ -179,27 +212,36 @@ export default function AuthPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
-                                <input
-                                    type="password"
-                                    placeholder="••••••••"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
-                                />
+                        {mode !== 'forgot_password' && (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Password</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
+                                    <input
+                                        type="password"
+                                        placeholder="••••••••"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
+                                    />
+                                </div>
+                                {mode === 'login' && (
+                                    <div className="text-right mt-2">
+                                        <button type="button" onClick={() => setMode('forgot_password')} className="text-[#D4AF37] hover:text-black transition-colors text-[10px] font-black uppercase tracking-widest">
+                                            Forgot Password?
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        </div>
+                        )}
 
                         <button
                             disabled={isLoading}
                             className="w-full bg-[#3E2723] text-white py-6 rounded-full font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-[#3E2723]/20 hover:bg-black transition-all flex items-center justify-center gap-4 relative overflow-hidden group"
                         >
                             <span className={isLoading ? 'opacity-0' : 'flex items-center gap-4'}>
-                                {mode === 'login' ? 'Access Account' : 'Create Account'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                {mode === 'login' ? 'Access Account' : mode === 'signup' ? 'Create Account' : 'Send Reset Link'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </span>
                             {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -222,20 +264,20 @@ export default function AuthPage() {
                             >
                                 <Chrome className="w-4 h-4" /> Google
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => { window.location.href = '#shopify'; }}
-                                className="w-full bg-[#95BF47] text-white py-5 rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#95BF47]/20 hover:bg-[#7da13a] transition-all flex items-center justify-center gap-3"
+                            <a
+                                href="/shop"
+                                className="w-full bg-zinc-50 border border-zinc-100 text-zinc-500 py-5 rounded-full font-black uppercase tracking-widest text-[10px] hover:border-zinc-200 transition-all flex items-center justify-center gap-3"
                             >
-                                <ShoppingCart className="w-4 h-4" /> Shopify
-                            </button>
+                                <ShoppingBag className="w-4 h-4" /> Browse Shop
+                            </a>
                         </div>
                     </form>
 
                     <div className="mt-12 text-center">
                         <p className="text-zinc-500 font-medium text-sm">
-                            {mode === 'login' ? "Don't have an account yet?" : "Already have an account?"} <br />
+                            {mode === 'login' ? "Don't have an account yet?" : mode === 'signup' ? "Already have an account?" : "Remembered your password?"} <br />
                             <button
+                                type="button"
                                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
                                 className="text-[#D4AF37] font-black uppercase tracking-widest text-[11px] mt-4 border-b-2 border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all"
                             >

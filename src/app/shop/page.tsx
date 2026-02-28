@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, User, Menu, Instagram, Facebook, Twitter, ShieldCheck, Truck, CreditCard, ArrowRight, Sparkles, X, Plus, Minus, Trash2, SlidersHorizontal, BookOpen } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, Instagram, Facebook, Twitter, ShieldCheck, Truck, CreditCard, ArrowRight, Sparkles, X, Plus, Minus, Trash2, SlidersHorizontal, BookOpen, ChevronLeft } from 'lucide-react';
 import productsData from '@/data/products.json';
+import { useCart } from '@/context/CartContext';
+import { supabase } from '@/lib/supabase';
+import MemberNavbar from '@/components/layout/MemberNavbar';
+
 
 // --- Types ---
 interface Product {
@@ -22,47 +26,98 @@ interface CartItem extends Product {
 
 // --- Monolithic Shop Page Component ---
 export default function Shop() {
-    const [isCartOpen, setIsCartOpen] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [cart, setCart] = useState<CartItem[]>([]);
-    const [search, setSearch] = useState("");
+    const { cart, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
     const [category, setCategory] = useState("All");
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    const ALL_PRODUCTS = productsData as Product[];
-    const categories = ["All", ...Array.from(new Set(ALL_PRODUCTS.map(p => p.category)))];
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setIsLoggedIn(!!session);
+        };
+        checkAuth();
 
-    const addToCart = (product: Product) => {
-        setCart((prev: CartItem[]) => {
-            const existing = prev.find((item: CartItem) => item.id === product.id);
-            if (existing) {
-                return prev.map((item: CartItem) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        const fetchProducts = async () => {
+            const { data, error } = await supabase
+                .from('products')
+                .select('*');
+
+            if (error) {
+                console.error("FULL SUPABASE ERROR DETAILS:", {
+                    message: error.message,
+                    code: error.code,
+                    details: error.details,
+                    hint: error.hint
+                }, error);
+                setProducts(productsData as Product[]);
+                setLoading(false);
+                return;
             }
-            return [...prev, { ...product, quantity: 1 }];
-        });
-        setIsCartOpen(true);
-    };
 
-    const removeFromCart = (id: string) => {
-        setCart((prev: CartItem[]) => prev.filter((item: CartItem) => item.id !== id));
-    };
+            console.log("Products loaded:", data);
 
-    const updateQuantity = (id: string, delta: number) => {
-        setCart((prev: CartItem[]) => prev.map((item: CartItem) => {
-            if (item.id === id) {
-                const newQty = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQty };
+            if (data && data.length > 0) {
+                const mappedProducts: Product[] = data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    category: p.category,
+                    image: p.image_url || p.image || '/logo.png',
+                    inStock: p.stock > 0,
+                    isCOD: p.is_cod,
+                    description: p.description
+                }));
+
+                setProducts(mappedProducts);
+            } else {
+                setProducts(productsData as Product[]);
             }
-            return item;
-        }));
-    };
+
+            setLoading(false);
+        };
+
+        fetchProducts();
+
+        // --- Real-time Products Synchronization ---
+        const channel = supabase
+            .channel('realtime-products')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'products' },
+                (payload: any) => {
+                    setProducts((current: Product[]) =>
+                        current.map((p: Product) => p.id === payload.new.id ? {
+                            ...p,
+                            inStock: payload.new.in_stock ?? payload.new.inStock,
+                            price: payload.new.price
+                        } : p)
+                    );
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    const categories = ["All", ...Array.from(new Set(products.map((p: Product) => p.category)))];
 
     const cartCount = cart.reduce((acc: number, item: CartItem) => acc + item.quantity, 0);
     const cartTotal = cart.reduce((acc: number, item: CartItem) => acc + (item.price * item.quantity), 0);
 
-    const filtered = ALL_PRODUCTS.filter(p => {
+    const filtered = products.filter((p: Product) => {
         const matchesCategory = category === "All" || p.category === category;
-        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-        return matchesCategory && matchesSearch;
+        const q = (searchQuery || "").toLowerCase().trim();
+        if (!q) return matchesCategory;
+
+        const nameMatch = (p.name || "").toLowerCase().includes(q);
+        const catMatch = (p.category || "").toLowerCase().includes(q);
+        const descMatch = (p.description || "").toLowerCase().includes(q);
+
+        return matchesCategory && (nameMatch || catMatch || descMatch);
     });
 
     return (
@@ -115,75 +170,12 @@ export default function Shop() {
                 <span className="text-[#D4AF37]">★</span> Smelling nice is our priority • <span className="underline decoration-[#D4AF37] underline-offset-4">Secure Checkout</span> <span className="hidden md:inline">• Nationwide Logistics</span> <span className="text-[#D4AF37]">★</span>
             </div>
 
-            {/* Navbar */}
-            <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-zinc-100 py-3 md:py-4">
-                <div className="container mx-auto px-4 flex items-center justify-between">
-                    <div className="flex items-center gap-10">
-                        <a href="/" className="group">
-                            <img src="/logo.png" alt="Wear Abbie" className="h-8 md:h-12 transition-transform duration-500 group-hover:scale-110" />
-                        </a>
-                        <div className="hidden lg:flex gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                            <a href="/" className="hover:text-[#D4AF37] transition-colors">Home</a>
-                            <a href="/shop" className="text-zinc-900 border-b-2 border-[#D4AF37] pb-1">Collections</a>
-                            <a href="/journal" className="hover:text-[#D4AF37] transition-colors">The Journal</a>
-                        </div>
-                    </div>
+            {/* Premium Unified Navbar */}
+            <MemberNavbar />
 
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <div className="hidden md:flex items-center w-64 lg:w-80">
-                            <div className="flex items-center w-full bg-zinc-50 border border-zinc-100 rounded-full px-5 py-2.5 focus-within:bg-white focus-within:border-[#D4AF37] transition-all">
-                                <Search className="w-4 h-4 text-zinc-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search catalog..."
-                                    value={search}
-                                    className="bg-transparent border-none outline-none text-sm ml-3 w-full font-medium"
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                                />
-                            </div>
-                        </div>
+            {/* Spacer for fixed MemberNavbar or multi-row standard Nav */}
+            <div className={isLoggedIn ? "h-20 md:h-24" : "h-0 lg:h-0"}></div>
 
-                        <div className="flex items-center gap-4 md:gap-6">
-                            <div className="relative cursor-pointer group" onClick={() => setIsCartOpen(true)}>
-                                <ShoppingBag className="w-5 h-5 md:w-6 md:h-6 group-hover:text-[#D4AF37] transition-colors" />
-                                {cartCount > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-[#D4AF37] text-white text-[8px] md:text-[9px] w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center font-black animate-pulse">
-                                        {cartCount}
-                                    </span>
-                                )}
-                            </div>
-                            <a href="/auth" className="hidden sm:block hover:text-[#D4AF37] transition-colors">
-                                <User className="w-6 h-6" />
-                            </a>
-                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-1.5 hover:bg-zinc-50 rounded-full transition-colors">
-                                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile Menu */}
-                {isMenuOpen && (
-                    <div className="lg:hidden bg-white border-b border-zinc-100 py-8 px-6 space-y-6 animate-in">
-                        <div className="flex flex-col gap-6 text-[13px] font-black uppercase tracking-[0.2em]">
-                            <a href="/" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>Home</a>
-                            <a href="/shop" className="text-[#D4AF37]" onClick={() => setIsMenuOpen(false)}>Collections</a>
-                            <a href="/journal" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>The Journal</a>
-                            <a href="/auth" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>Login / Register</a>
-                        </div>
-                        <div className="relative">
-                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                            <input
-                                type="text"
-                                placeholder="Search catalogue..."
-                                className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-12 py-4 text-sm font-medium outline-none focus:bg-white focus:border-[#D4AF37]"
-                                value={search}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-            </nav>
 
             <main className="flex-grow py-12 md:py-20 bg-white">
                 <div className="container mx-auto px-4">
@@ -222,7 +214,7 @@ export default function Shop() {
 
                     {/* Grid: 2 columns on mobile, 4 on desktop */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-                        {filtered.map(p => (
+                        {filtered.map((p: Product) => (
                             <a href={`/product/${p.id}`} key={p.id} className="bg-white rounded-[24px] md:rounded-[32px] p-3 md:p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.15)] transition-all duration-500 group relative flex flex-col h-full cursor-pointer">
                                 <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
                                     <img src={p.image} alt={p.name} className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700" />
@@ -258,15 +250,31 @@ export default function Shop() {
 
                     {/* Empty State */}
                     {filtered.length === 0 && (
-                        <div className="text-center py-24 md:py-40 bg-zinc-50 rounded-[40px] md:rounded-[60px] border border-zinc-100">
-                            <div className="w-16 h-16 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-sm border border-zinc-100 text-zinc-200">
+                        <div className="text-center py-20 bg-[#D4AF37]/5 rounded-[40px] md:rounded-[60px] border border-[#D4AF37]/20 border-dashed max-w-4xl mx-auto">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-sm border border-zinc-100 text-[#D4AF37]">
                                 <Search className="w-6 h-6 md:w-8 md:h-8" />
                             </div>
-                            <p className="text-zinc-400 text-3xl md:text-6xl font-serif italic mb-6 px-6" style={{ fontFamily: 'var(--font-playfair), serif' }}>The search remains elusive.</p>
-                            <p className="text-zinc-400 font-medium text-sm md:text-lg mb-10 px-8">No fragrances match your current criteria in the boutique.</p>
-                            <button onClick={() => { setSearch(""); setCategory("All"); }} className="bg-[#D4AF37] text-white px-10 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-[#3E2723] transition-all">
-                                Reset Selection
-                            </button>
+                            <h2 className="text-2xl md:text-5xl font-serif font-black mb-6 px-6 text-zinc-900" style={{ fontFamily: 'var(--font-playfair), serif' }}>Scent Not Found?</h2>
+                            <p className="text-zinc-500 font-medium text-sm md:text-lg mb-10 px-8 max-w-2xl mx-auto leading-relaxed">
+                                Our boutique is ever-evolving. If your desired fragrance isn't listed, <span className="text-zinc-900 font-black">let us know on WhatsApp</span> or the site, and we'll review it for addition in less than 48 hours.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-6">
+                                <a
+                                    href={`https://wa.me/2348132484859?text=Hello Wear Abbie, I am looking for a fragrance that is not on your site: ${searchQuery}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="w-full sm:w-auto bg-[#25D366] text-white px-10 py-5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:translate-y-[-2px] transition-all"
+                                >
+                                    Contact on WhatsApp <span className="text-sm">→</span>
+                                </a>
+                                <button
+                                    onClick={() => { setSearchQuery(""); setCategory("All"); }}
+                                    className="w-full sm:w-auto bg-zinc-900 text-white px-10 py-5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#3E2723] transition-all"
+                                >
+                                    Reset Selection
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -279,9 +287,9 @@ export default function Shop() {
                         <img src="/logo.png" alt="Logo" className="h-10 md:h-12 mb-8" />
                         <p className="text-zinc-500 text-sm leading-relaxed mb-8">Smelling nice is our priority. Wear Abbie Signature is dedicated to bringing you the finest fragrances with an unmatched level of service.</p>
                         <div className="flex gap-5">
-                            <Instagram className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
-                            <Facebook className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
-                            <Twitter className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
+                            <a href="https://www.tiktok.com/@wear.abbie?_r=1&_t=ZS-94I4fSegq5S" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-[#D4AF37] transition-all transform hover:scale-110">
+                                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.13-1.47-.23-.15-.44-.31-.64-.49v8.29c.04 1.48-.41 3.01-1.39 4.11-1.15 1.4-3.03 2.1-4.78 1.95-1.76-.01-3.52-.92-4.48-2.39-1.02-1.42-1.22-3.32-.57-4.89.65-1.74 2.27-3.04 4.1-3.23l.11 4.13c-1.3-.02-2.73.74-3.19 1.96-.28.81-.13 1.73.34 2.45.42.72 1.25 1.15 2.08 1.15.71-.01 1.4-.35 1.83-.91.43-.6.54-1.39.51-2.12V.02z" /></svg>
+                            </a>
                         </div>
                     </div>
                     <div>
@@ -320,89 +328,6 @@ export default function Shop() {
                 </div>
             </footer>
 
-            {/* Cart Drawer */}
-            {isCartOpen && (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in">
-                        <div className="p-6 md:p-8 border-b border-zinc-100 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <ShoppingBag className="w-6 h-6 text-[#D4AF37]" />
-                                <h2 className="text-xl font-black uppercase tracking-widest">Your Bag</h2>
-                            </div>
-                            <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-zinc-50 rounded-full transition-colors">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-8 no-scrollbar">
-                            {cart.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                                    <div className="w-16 h-16 md:w-20 bg-zinc-50 rounded-full flex items-center justify-center mb-6">
-                                        <ShoppingBag className="w-8 h-8 text-zinc-200" />
-                                    </div>
-                                    <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-8">Your bag is empty.</p>
-                                    <button onClick={() => setIsCartOpen(false)} className="bg-[#D4AF37] text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-[0.2em]">Start Shopping</button>
-                                </div>
-                            ) : (
-                                cart.map((item: CartItem) => (
-                                    <div key={item.id} className="flex gap-4 md:gap-6 pb-6 md:pb-8 border-b border-zinc-50 last:border-0 group">
-                                        <div className="w-16 h-16 md:w-24 bg-zinc-50 rounded-2xl flex-shrink-0 p-3 md:p-4 flex items-center justify-center overflow-hidden">
-                                            <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
-                                        </div>
-                                        <div className="flex-grow">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="font-serif font-black text-sm" style={{ fontFamily: 'var(--font-playfair), serif' }}>{item.name}</h3>
-                                                <button onClick={() => removeFromCart(item.id)} className="text-zinc-300 hover:text-red-500 transition-colors">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                            <p className="text-[10px] font-black uppercase text-[#D4AF37] tracking-widest mb-4">{item.category}</p>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center bg-zinc-50 rounded-full border border-zinc-100 p-0.5 md:p-1">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} className="w-6 md:w-8 h-6 md:h-8 flex items-center justify-center hover:bg-white rounded-full transition-all">
-                                                        <Minus className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                                                    </button>
-                                                    <span className="w-6 md:w-8 text-center text-xs font-black">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, 1)} className="w-6 md:w-8 h-6 md:h-8 flex items-center justify-center hover:bg-white rounded-full transition-all">
-                                                        <Plus className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                                                    </button>
-                                                </div>
-                                                <p className="font-black text-sm">₦{(item.price * item.quantity).toLocaleString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        {cart.length > 0 && (
-                            <div className="p-6 md:p-8 bg-zinc-50 border-t border-zinc-100 space-y-4">
-                                <div className="space-y-2 md:space-y-3">
-                                    <div className="flex justify-between text-[10px] md:text-[11px] font-black uppercase tracking-widest text-zinc-400">
-                                        <span>Subtotal</span>
-                                        <span className="text-zinc-900">₦{cartTotal.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-base md:text-lg font-black pt-3 border-t border-zinc-200">
-                                        <span>Total</span>
-                                        <span className="text-[#D4AF37]">₦{cartTotal.toLocaleString()}</span>
-                                    </div>
-                                </div>
-                                <button className="w-full bg-[#3E2723] text-white py-5 md:py-6 rounded-full font-black uppercase tracking-[0.2em] text-[10px] md:text-[11px] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-4">
-                                    Checkout Now <ArrowRight className="w-4 h-4" />
-                                </button>
-                                <a
-                                    href={`https://wa.me/234XXXXXXXXXX?text=Hello%20Wear%20Abbie,%20I'd%20like%20to%20order:%20${cart.map((item: CartItem) => `${item.name}%20(x${item.quantity})`).join(',%20')}.%20Total:%20₦${cartTotal.toLocaleString()}`}
-                                    target="_blank"
-                                    className="w-full bg-[#25D366] text-white py-4 rounded-full font-black uppercase tracking-[0.2em] text-[10px] hover:scale-105 transition-all flex items-center justify-center gap-3"
-                                >
-                                    Order via WhatsApp
-                                </a>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

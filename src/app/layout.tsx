@@ -14,12 +14,19 @@ const playfair = Playfair_Display({
     display: "swap",
 });
 
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/layout/CartDrawer";
+import ToastNotification from "@/components/ui/ToastNotification";
+
 export const metadata: Metadata = {
     title: "Wear Abbie | Signature Fragrances",
     description: "Smelling nice is our priority. Experience the curated collection of Wear Abbie.",
+    icons: {
+        icon: "/logo.png",
+        shortcut: "/logo.png",
+        apple: "/logo.png",
+    }
 };
-
-import { CartProvider } from "@/context/CartContext";
 
 export default function RootLayout({
     children,
@@ -29,7 +36,11 @@ export default function RootLayout({
     return (
         <html lang="en" className={`${outfit.variable} ${playfair.variable}`}>
             <body className="antialiased">
-                <CartProvider>{children}</CartProvider>
+                <CartProvider>
+                    {children}
+                    <CartDrawer />
+                    <ToastNotification />
+                </CartProvider>
             </body>
         </html>
     );

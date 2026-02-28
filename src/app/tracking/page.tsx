@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Truck, Search, Package, MapPin, Clock, ArrowRight, ShieldCheck, Instagram, Facebook, Twitter, ShieldCheck as ShieldIcon } from 'lucide-react';
+import { Truck, Search, Package, MapPin, Clock, ArrowRight, ShieldCheck, ShieldCheck as ShieldIcon } from 'lucide-react';
+import Footer from '@/components/layout/Footer';
 
 export default function TrackingPage() {
     const [orderId, setOrderId] = useState("");
@@ -158,17 +159,7 @@ export default function TrackingPage() {
                 </div>
             </main>
 
-            {/* Simple Footer */}
-            <footer className="bg-zinc-50 py-10 border-t border-zinc-100">
-                <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">© 2026 Wear Abbie Logistics Infrastructure</p>
-                    <div className="flex gap-6">
-                        <Instagram className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                        <Facebook className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                        <Twitter className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 }

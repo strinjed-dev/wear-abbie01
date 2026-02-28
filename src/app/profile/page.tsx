@@ -1,21 +1,43 @@
 "use client";
 
-import React, { useState } from 'react';
-import { User, Package, MapPin, Settings, LogOut, ChevronRight, ShoppingBag, Heart, Star, Clock, ArrowRight, ShieldCheck, Instagram, Facebook, Twitter, Phone, Mail, Edit3, Camera } from 'lucide-react';
-
+import React, { useState, useEffect } from 'react';
+import { User, Package, MapPin, Settings, LogOut, ChevronRight, ShoppingBag, Heart, ShieldCheck, Phone, Mail, ArrowRight, LayoutDashboard } from 'lucide-react';
+import MemberNavbar from '@/components/layout/MemberNavbar';
+import { useCart } from '@/context/CartContext';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 export default function ProfilePage() {
+    const { orders } = useCart();
     const [activeSection, setActiveSection] = useState('overview');
+    const [userData, setUserData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
-    // Simulate User Data
-    const user = {
-        name: "Ibrahim Tijani",
-        email: "ibrahim@wearabbie.com",
-        phone: "+234 812 345 6789",
-        memberSince: "Dec 2025",
-        orders: [
-            { id: "WA-982341", date: "Feb 22, 2026", status: "In Transit", total: "₦17,500", items: 1 },
-            { id: "WA-982102", date: "Jan 15, 2026", status: "Delivered", total: "₦45,000", items: 3 }
-        ]
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                router.push('/auth');
+            } else {
+                setUserData(session.user);
+            }
+            setLoading(false);
+        };
+        checkAuth();
+    }, [router]);
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div></div>;
+    }
+
+    if (!userData) return null;
+
+    const userDisplay = {
+        name: userData.user_metadata?.full_name || userData.email?.split('@')[0] || "Member",
+        email: userData.email,
+        phone: userData.user_metadata?.phone || "No phone added",
+        memberSince: new Date(userData.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        orders: orders
     };
 
     return (
@@ -29,72 +51,57 @@ export default function ProfilePage() {
                 @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
 
-            {/* Navbar */}
-            <nav className="border-b border-zinc-100 py-6 md:py-8 bg-white sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-                    <a href="/" className="group">
-                        <img src="/logo.png" alt="Wear Abbie" className="h-8 md:h-10" />
-                    </a>
-                    <div className="flex gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 hidden lg:flex">
-                        <a href="/" className="hover:text-zinc-900 transition-colors">Home</a>
-                        <a href="/shop" className="hover:text-zinc-900 transition-colors">Collections</a>
-                        <a href="/journal" className="hover:text-zinc-900 transition-colors">The Journal</a>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-[#3E2723] rounded-full flex items-center justify-center text-white font-black text-xs">IT</div>
-                    </div>
-                </div>
-            </nav>
+            <MemberNavbar />
 
-            <main className="flex-grow flex flex-col lg:flex-row min-h-[calc(100vh-100px)]">
+            <main className="flex-grow flex flex-col lg:flex-row min-h-[calc(100vh-100px)] pt-20 md:pt-0">
                 {/* Sidebar */}
-                <aside className="w-full lg:w-80 border-r border-zinc-100 p-8 md:p-12 lg:p-16 space-y-12">
-                    <div className="text-center lg:text-left">
-                        <div className="relative inline-block mb-6">
-                            <div className="w-24 h-24 md:w-32 md:h-32 bg-zinc-50 rounded-[40px] flex items-center justify-center text-zinc-200 border border-zinc-100 relative overflow-hidden group">
-                                <User className="w-12 h-12 md:w-16 md:h-16" />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                    <Camera className="w-6 h-6 text-white" />
-                                </div>
+                <aside className="w-full lg:w-80 border-b lg:border-r border-zinc-100 p-6 md:p-12 lg:p-16 space-y-8 lg:space-y-12 bg-white">
+                    <div className="flex lg:flex-col items-center gap-6 lg:gap-0 lg:text-left">
+                        <div className="relative inline-block lg:mb-6 flex-shrink-0">
+                            <div className="w-20 h-20 md:w-32 md:h-32 bg-zinc-50 rounded-[30px] md:rounded-[40px] flex items-center justify-center text-zinc-200 border border-zinc-100 relative overflow-hidden group">
+                                <User className="w-10 h-10 md:w-16 md:h-16" />
                             </div>
-                            <div className="absolute -bottom-2 -right-2 bg-[#D4AF37] text-white p-2.5 rounded-2xl shadow-xl shadow-[#D4AF37]/20">
-                                <ShieldCheck className="w-4 h-4" />
+                            <div className="absolute -bottom-1 -right-1 bg-[#D4AF37] text-white p-1.5 md:p-2.5 rounded-xl shadow-xl">
+                                <ShieldCheck className="w-3 h-3 md:w-4 md:h-4" />
                             </div>
                         </div>
-                        <h2 className="text-2xl font-serif font-black tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>{user.name}</h2>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mt-1">Elite Member since {user.memberSince}</p>
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-serif font-black tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>{userDisplay.name}</h2>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mt-1">Elite Membership Active</p>
+                        </div>
                     </div>
 
-                    <nav className="space-y-3">
-                        <ProfileNavItem icon={<Package className="w-5 h-5" />} label="Order History" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
-                        <ProfileNavItem icon={<Heart className="w-5 h-5" />} label="Fragrance Wishlist" active={activeSection === 'wishlist'} onClick={() => setActiveSection('wishlist')} />
-                        <ProfileNavItem icon={<MapPin className="w-5 h-5" />} label="Shipping Vault" active={activeSection === 'shipping'} onClick={() => setActiveSection('shipping')} />
-                        <ProfileNavItem icon={<Settings className="w-5 h-5" />} label="Account Intel" active={activeSection === 'settings'} onClick={() => setActiveSection('settings')} />
+                    <nav className="flex lg:flex-col gap-2 overflow-x-auto no-scrollbar pb-4 lg:pb-0 lg:space-y-3">
+                        <ProfileNavItem icon={<Package className="w-4 h-4" />} label="Orders" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
+                        <ProfileNavItem icon={<Heart className="w-4 h-4" />} label="Wishlist" active={activeSection === 'wishlist'} onClick={() => setActiveSection('wishlist')} />
+                        <ProfileNavItem icon={<Settings className="w-4 h-4" />} label="Settings" active={activeSection === 'settings'} onClick={() => setActiveSection('settings')} />
                     </nav>
 
-                    <div className="pt-10 border-t border-zinc-50">
-                        <button className="flex items-center gap-4 text-zinc-400 hover:text-red-500 transition-colors uppercase font-black text-[10px] tracking-widest">
+                    <div className="hidden lg:block pt-10 border-t border-zinc-50">
+                        <button
+                            onClick={async () => { await supabase.auth.signOut(); router.push('/'); }}
+                            className="flex items-center gap-4 text-zinc-400 hover:text-red-500 transition-colors uppercase font-black text-[10px] tracking-widest"
+                        >
                             <LogOut className="w-5 h-5" /> Retract Access
                         </button>
                     </div>
                 </aside>
 
                 {/* Content Area */}
-                <div className="flex-grow p-8 md:p-16 lg:p-24 bg-zinc-50/50 animate-in">
+                <div className="flex-grow p-6 md:p-16 lg:p-24 bg-zinc-50/50 animate-in">
                     <div className="max-w-4xl mx-auto">
                         {activeSection === 'overview' && (
-                            <section className="space-y-12">
+                            <section className="space-y-8 md:space-y-12">
                                 <header className="flex justify-between items-end">
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-2">Tracking Activity</p>
-                                        <h3 className="text-3xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Recent Dispatches</h3>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Activities</p>
+                                        <h3 className="text-2xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Recent Dispatches</h3>
                                     </div>
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest hidden sm:block">Found {user.orders.length} Records</p>
                                 </header>
 
                                 <div className="space-y-6">
-                                    {user.orders.map((order, i) => (
-                                        <div key={i} className="bg-white p-8 md:p-10 rounded-[40px] border border-zinc-100 shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all group cursor-pointer group">
+                                    {userDisplay.orders.map((order, i) => (
+                                        <div key={i} className="bg-white p-8 md:p-10 rounded-[40px] border border-zinc-100 shadow-sm hover:shadow-xl hover:border-[#D4AF37]/30 transition-all group cursor-pointer">
                                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-16 h-16 bg-zinc-50 rounded-[20px] flex items-center justify-center text-zinc-200 group-hover:bg-[#D4AF37]/5 group-hover:text-[#D4AF37] transition-all">
@@ -152,7 +159,7 @@ export default function ProfilePage() {
                                         </div>
                                         <div>
                                             <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Full Name</h4>
-                                            <p className="font-bold text-lg">{user.name}</p>
+                                            <p className="font-bold text-lg">{userDisplay.name}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white p-10 rounded-[40px] border border-zinc-100 space-y-8">
@@ -162,7 +169,7 @@ export default function ProfilePage() {
                                         </div>
                                         <div>
                                             <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Authenticated Email</h4>
-                                            <p className="font-bold text-lg">{user.email}</p>
+                                            <p className="font-bold text-lg">{userDisplay.email}</p>
                                         </div>
                                     </div>
                                     <div className="bg-white p-10 rounded-[40px] border border-zinc-100 space-y-8">
@@ -172,7 +179,7 @@ export default function ProfilePage() {
                                         </div>
                                         <div>
                                             <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Logistics Contact</h4>
-                                            <p className="font-bold text-lg">{user.phone}</p>
+                                            <p className="font-bold text-lg">{userDisplay.phone}</p>
                                         </div>
                                     </div>
                                     <div className="bg-[#121212] p-10 rounded-[40px] text-white space-y-8 flex flex-col justify-between group cursor-pointer hover:bg-black transition-all">
@@ -197,18 +204,16 @@ export default function ProfilePage() {
             <footer className="bg-zinc-50 py-10 border-t border-zinc-100">
                 <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">© 2026 Wear Abbie Signature Account Services</p>
-                    <div className="flex gap-6">
-                        <Instagram className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                        <Facebook className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                        <Twitter className="w-4 h-4 text-zinc-300 hover:text-[#D4AF37] transition-colors" />
-                    </div>
+                    <a href="https://www.tiktok.com/@wear.abbie" target="_blank" rel="noopener noreferrer" className="text-zinc-300 hover:text-[#D4AF37] transition-colors">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.88a8.28 8.28 0 004.84 1.54V7a4.85 4.85 0 01-1.07-.31z" /></svg>
+                    </a>
                 </div>
             </footer>
         </div>
     );
 }
 
-function ProfileNavItem({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+function ProfileNavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
     return (
         <div
             onClick={onClick}

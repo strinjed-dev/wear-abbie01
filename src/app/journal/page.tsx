@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, ShoppingBag, User, Menu, X, ArrowRight, Sparkles, Instagram, Facebook, Twitter, ShieldCheck, Truck, CreditCard } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, ArrowRight, Sparkles, ShieldCheck, Truck, CreditCard } from 'lucide-react';
+import Footer from '@/components/layout/Footer';
 
 export default function Journal() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -139,49 +140,7 @@ export default function Journal() {
                 </section>
             </main>
 
-            {/* Footer */}
-            <footer className="bg-zinc-50 pt-16 md:pt-20 pb-10 border-t border-zinc-100">
-                <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
-                    <div className="flex flex-col items-center md:items-start">
-                        <img src="/logo.png" alt="Logo" className="h-10 md:h-12 mb-8" />
-                        <p className="text-zinc-500 text-sm leading-relaxed mb-8">Smelling nice is our priority. Wear Abbie Signature is dedicated to bringing you the finest fragrances.</p>
-                        <div className="flex gap-5">
-                            <Instagram className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
-                            <Facebook className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
-                            <Twitter className="w-5 h-5 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer" />
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="font-black uppercase tracking-widest text-xs mb-6 text-zinc-400">Collections</h4>
-                        <ul className="space-y-3 text-sm font-bold text-zinc-500">
-                            <li><a href="/shop">Wear Abbie Boutique</a></li>
-                            <li><a href="/journal">The Journal</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="font-black uppercase tracking-widest text-xs mb-6 text-zinc-400">Help</h4>
-                        <ul className="space-y-3 text-sm font-bold text-zinc-500">
-                            <li><a href="/tracking">Order Tracking</a></li>
-                            <li>Customer Support</li>
-                        </ul>
-                    </div>
-                    <div className="flex flex-col items-center md:items-start">
-                        <h4 className="font-black uppercase tracking-widest text-xs mb-6 text-zinc-400">Our Promise</h4>
-                        <div className="space-y-4">
-                            {[
-                                { icon: <ShieldCheck className="w-5 h-5" />, txt: "Original Products" },
-                                { icon: <Truck className="w-5 h-5" />, txt: "Secure Nationwide Shipping" },
-                                { icon: <CreditCard className="w-5 h-5" />, txt: "Secure Payments" }
-                            ].map((p, i) => (
-                                <div key={i} className="flex items-center gap-4 text-sm font-bold text-zinc-500 justify-center md:justify-start">
-                                    <span className="text-[#D4AF37]">{p.icon}</span>
-                                    {p.txt}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 }

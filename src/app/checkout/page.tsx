@@ -1,28 +1,71 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingBag, ChevronLeft, CreditCard, Truck, ShieldCheck, ArrowRight, Sparkles, X, Heart, MapPin, Phone, Mail, User } from 'lucide-react';
 
 import { useCart } from '@/context/CartContext';
+import { supabase } from '@/lib/supabase';
+import { deliveryPricing, getDeliveryCost } from '@/utils/deliveryPricing';
 
 export default function CheckoutPage() {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
-    const { cart, placeOrder } = useCart();
-    const [customer, setCustomer] = useState({ firstName: '', lastName: '', address: '', email: '', phone: '' });
+    const { cart, placeOrder, isInitialized } = useCart();
+    const [customer, setCustomer] = useState({ firstName: '', lastName: '', state: 'Lagos', area: '', address: '', email: '', phone: '' });
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'palmpay'>('paystack');
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setIsLoggedIn(!!session);
+            if (session?.user) {
+                setCustomer((prev: any) => ({ ...prev, email: session.user.email || '', firstName: session.user.user_metadata?.full_name || '' }));
+                setPaymentMethod('paystack');
+            } else {
+                setPaymentMethod('palmpay');
+            }
+        };
+        checkAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+            setIsLoggedIn(!!session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     const total = cart.reduce((add, item) => add + (item.price * item.quantity), 0);
-    const logistics = 2500;
+    const logistics = getDeliveryCost(customer.state, customer.area);
 
-    const handleComplete = (e: React.FormEvent) => {
+    const handleComplete = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        placeOrder(customer);
-        // Simulate Paystack/Payment
-        setTimeout(() => {
+        try {
+            await placeOrder({ ...customer, shipping_fee: logistics });
+            // Save order ID for success page display
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                const { data: latestOrder } = await supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+                if (latestOrder?.id) {
+                    sessionStorage.setItem('wear_abbie_last_order_id', `WA-${latestOrder.id.split('-')[0].toUpperCase()}`);
+                }
+            }
+            setTimeout(() => {
+                setIsLoading(false);
+                window.location.href = '/order-success';
+            }, 1500);
+        } catch (error) {
+            console.error("Order error:", error);
             setIsLoading(false);
-            window.location.href = '/order-success';
-        }, 1500);
+            alert("Order submission encountered an issue. Please contact our support team on WhatsApp at +234 813 248 4859 for manual assistance.");
+        }
     };
 
     return (
@@ -79,6 +122,30 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">State / Region</label>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                                                <select value={customer.state} onChange={(e) => setCustomer({ ...customer, state: e.target.value, area: '' })} className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-14 py-4 text-sm font-medium focus:bg-white focus:border-[#D4AF37] outline-none transition-all appearance-none">
+                                                    {Object.keys(deliveryPricing).map(st => (
+                                                        <option key={st} value={st}>{st}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">City / Area</label>
+                                            <select value={customer.area} onChange={(e) => setCustomer({ ...customer, area: e.target.value })} className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-6 py-4 text-sm font-medium focus:bg-white focus:border-[#D4AF37] outline-none transition-all appearance-none">
+                                                <option value="">Select Area (Optional)</option>
+                                                {deliveryPricing[customer.state]?.areas && Object.keys(deliveryPricing[customer.state].areas as Record<string, number>).map(ar => (
+                                                    <option key={ar} value={ar}>{ar}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Delivery Address</label>
                                         <div className="relative">
@@ -111,22 +178,66 @@ export default function CheckoutPage() {
                             ) : (
                                 <div className="space-y-8 animate-in">
                                     <div className="grid grid-cols-1 gap-4">
-                                        <div className="border-2 border-[#D4AF37] p-6 rounded-[30px] bg-[#D4AF37]/5 flex items-center justify-between group cursor-pointer">
+                                        <div
+                                            onClick={() => setPaymentMethod('paystack')}
+                                            className={`border-2 p-6 rounded-[30px] flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.02] ${paymentMethod === 'paystack' ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-xl shadow-[#D4AF37]/10' : 'border-zinc-100 bg-white'}`}
+                                        >
                                             <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                                                    <CreditCard className="w-6 h-6 text-[#D4AF37]" />
+                                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-100">
+                                                    <CreditCard className={`w-6 h-6 ${paymentMethod === 'paystack' ? 'text-[#D4AF37]' : 'text-zinc-300'}`} />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-black text-xs uppercase tracking-widest">Paystack Secure</h4>
-                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">Card, Transfer & USSD</p>
+                                                    <h4 className={`font-black text-xs uppercase tracking-widest ${paymentMethod === 'paystack' ? 'text-[#D4AF37]' : 'text-zinc-400'}`}>Secure Card Payment</h4>
+                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">Handled by Paystack Gateway</p>
                                                 </div>
                                             </div>
-                                            <div className="w-6 h-6 rounded-full border-2 border-[#D4AF37] flex items-center justify-center">
-                                                <div className="w-3 h-3 bg-[#D4AF37] rounded-full"></div>
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'paystack' ? 'border-[#D4AF37]' : 'border-zinc-200'}`}>
+                                                {paymentMethod === 'paystack' && <div className="w-3 h-3 bg-[#D4AF37] rounded-full"></div>}
                                             </div>
                                         </div>
 
-                                        <div className="border border-zinc-100 p-6 rounded-[30px] flex items-center justify-between hover:border-zinc-200 transition-all cursor-pointer opacity-50 grayscale pointer-events-none">
+                                        <div
+                                            onClick={() => setPaymentMethod('palmpay')}
+                                            className={`border-2 p-6 rounded-[30px] flex flex-col items-start justify-between group cursor-pointer transition-all hover:scale-[1.02] ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9] bg-[#6F3AF9]/5 shadow-xl shadow-[#6F3AF9]/10' : 'border-zinc-100 bg-white'}`}
+                                        >
+                                            <div className="flex items-center gap-6 w-full mb-4">
+                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl p-3 overflow-hidden border-2 border-[#6F3AF9]/20 group-hover:scale-105 transition-transform">
+                                                    <img src="/palmpay_logo.png" alt="PalmPay" className="w-full h-full object-contain" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className={`font-black text-xs uppercase tracking-widest ${paymentMethod === 'palmpay' ? 'text-[#6F3AF9]' : 'text-zinc-400'}`}>Direct PalmPay Transfer</h4>
+                                                        <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest">VERIFIED</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">Fast & Reliable for Guests</p>
+                                                </div>
+                                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9]' : 'border-zinc-200'}`}>
+                                                    {paymentMethod === 'palmpay' && <div className="w-3 h-3 bg-[#6F3AF9] rounded-full"></div>}
+                                                </div>
+                                            </div>
+
+                                            {paymentMethod === 'palmpay' && (
+                                                <div className="w-full bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-[#6F3AF9]/20 shadow-inner space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
+                                                    <div className="flex justify-between items-center text-[10px]">
+                                                        <span className="font-black text-zinc-400 uppercase tracking-widest">Bank</span>
+                                                        <span className="font-black text-[#6F3AF9]">PALMPAY (Opay/Kuda Compatible)</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-black text-zinc-400 uppercase tracking-widest text-[9px]">Account Number</span>
+                                                        <span className="font-black text-2xl text-zinc-900 tracking-[0.2em]">08132484859</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-[9px]">
+                                                        <span className="font-black text-zinc-400 uppercase tracking-widest">Account Name</span>
+                                                        <span className="font-black text-zinc-950 uppercase text-[10px]">Wear Abbie Signature</span>
+                                                    </div>
+                                                    <div className="pt-2 border-t border-zinc-100">
+                                                        <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-[0.1em] text-center">Transfer exact total & stay on this page for verification</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="border border-zinc-100 p-6 rounded-[30px] flex items-center justify-between hover:border-zinc-200 transition-all cursor-pointer opacity-50 grayscale pointer-events-none mt-2">
                                             <div className="flex items-center gap-6">
                                                 <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center">
                                                     <Truck className="w-6 h-6 text-zinc-300" />
@@ -139,10 +250,10 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
 
-                                    <div className="p-8 bg-zinc-50 rounded-[40px] border border-zinc-100">
-                                        <div className="flex items-center gap-4 text-zinc-400 mb-6 uppercase font-black text-[9px] tracking-widest">
+                                    <div className="p-8 bg-zinc-50 rounded-[40px] border border-zinc-100 mt-4">
+                                        <div className="flex items-center gap-4 text-zinc-400 mb-4 uppercase font-black text-[9px] tracking-widest">
                                             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                                            Secured by Paystack Infrastructure
+                                            {isLoggedIn ? 'Secured by Paystack Infrastructure' : 'Manual Transfer Verification Required'}
                                         </div>
                                         <p className="text-zinc-500 text-xs font-medium leading-relaxed">By completing this order, you authorize Wear Abbie to process your data for logistics fulfillment. All transactions are encrypted.</p>
                                     </div>
@@ -169,7 +280,11 @@ export default function CheckoutPage() {
                             <h3 className="text-2xl font-serif font-black mb-8" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order Review</h3>
 
                             <div className="space-y-6 mb-10 max-h-[400px] overflow-y-auto no-scrollbar pr-4">
-                                {cart.length === 0 ? (
+                                {!isInitialized ? (
+                                    <div className="flex justify-center py-10">
+                                        <div className="w-6 h-6 border-2 border-zinc-200 border-t-[#D4AF37] rounded-full animate-spin"></div>
+                                    </div>
+                                ) : cart.length === 0 ? (
                                     <p className="text-zinc-500 font-medium text-xs">Your cart is empty.</p>
                                 ) : (
                                     cart.map((item, idx) => (
@@ -196,7 +311,7 @@ export default function CheckoutPage() {
                                     <span className="text-zinc-900">₦{total.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-zinc-400">
-                                    <span>Logistics (Lagos)</span>
+                                    <span>Logistics ({customer.area || customer.state})</span>
                                     <span className="text-zinc-900">₦{cart.length > 0 ? logistics.toLocaleString() : "0"}</span>
                                 </div>
                                 <div className="flex justify-between text-xl font-black pt-6 border-t border-zinc-200">
