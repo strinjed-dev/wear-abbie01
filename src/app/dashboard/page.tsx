@@ -81,7 +81,7 @@ export default function UserDashboard() {
             });
 
             if (!error && data) {
-                alert("God Mode Enabled. Welcome back, Administrator.");
+                alert("Authorization Successful. You now have administrative access.");
                 setIsAdmin(true);
             } else {
                 alert("Authorization Failed.");
@@ -130,23 +130,31 @@ export default function UserDashboard() {
             <div className="max-w-[1400px] mx-auto pt-20 md:pt-32 px-4 md:px-10">
                 {/* Simplified Premium Header */}
                 <header className="mb-6 md:mb-10">
-                    <div className="bg-gradient-to-br from-[#121212] to-[#2D1B18] rounded-[24px] md:rounded-[48px] p-6 md:p-20 relative overflow-hidden shadow-xl">
+                    <div className={`rounded-[24px] md:rounded-[48px] p-6 md:p-20 relative overflow-hidden shadow-xl transition-all duration-700 ${isAdmin ? 'bg-gradient-to-br from-black via-[#1a1a1a] to-[#2a1a0a] border-2 border-[#D4AF37]/20' : 'bg-gradient-to-br from-[#121212] to-[#2D1B18]'}`}>
                         {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-[#D4AF37]/5 rounded-full blur-[60px]"></div>
+                        <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] transition-all duration-700 ${isAdmin ? 'bg-[#D4AF37]/10' : 'bg-[#D4AF37]/5'}`}></div>
+                        {isAdmin && <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-[#3E2723]/20 rounded-full blur-[60px]"></div>}
 
                         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8">
                             <div>
+                                <div className="flex items-center gap-4 mb-4">
+                                    {isAdmin && (
+                                        <div className="px-4 py-1.5 bg-[#D4AF37] text-black text-[9px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2 animate-pulse">
+                                            <ShieldCheck size={12} /> System Administrator
+                                        </div>
+                                    )}
+                                </div>
                                 <h1 className="text-2xl md:text-7xl font-serif font-black text-white mb-2 tracking-tight md:tracking-tighter">
                                     Hello, <span className="text-[#D4AF37] italic font-light">{userData?.user_metadata?.full_name?.split(' ')[0] || 'Member'}</span>
                                 </h1>
                                 <p className="text-zinc-400 font-medium text-[11px] md:text-lg max-w-md leading-relaxed">
-                                    Manage your scents and tracking.
+                                    {isAdmin ? "Welcome back. You have full access to manage the collection and orders." : "Manage your orders and track your deliveries."}
                                 </p>
                             </div>
                             <div className="hidden sm:flex gap-4">
                                 <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-center">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">Status</p>
-                                    <p className="text-white font-black text-sm uppercase">Gold Member</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">Account Type</p>
+                                    <p className="text-white font-black text-sm uppercase">{isAdmin ? 'Administrator' : 'Valued Member'}</p>
                                 </div>
                             </div>
                         </div>
@@ -238,7 +246,7 @@ export default function UserDashboard() {
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                                         <div>
                                             <h3 className="text-3xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order History</h3>
-                                            <p className="text-zinc-500 mt-2 text-sm font-medium">Review and track your curated collection purchases.</p>
+                                            <p className="text-zinc-500 mt-2 text-sm font-medium">Review and track your past purchases here.</p>
                                         </div>
                                         <Link href="/shop">
                                             <button className="bg-zinc-900 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all shadow-xl shadow-black/10">
@@ -307,9 +315,9 @@ export default function UserDashboard() {
                                             className="w-full bg-white border border-zinc-200 rounded-full px-10 py-6 text-base font-bold text-center mb-6 focus:outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all shadow-sm"
                                         />
                                         <button className="w-full bg-[#121212] text-[#D4AF37] py-6 px-8 rounded-full text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10">
-                                            Locate Package
+                                            Track Order
                                         </button>
-                                        <p className="text-[10px] text-zinc-400 text-center mt-8 font-bold uppercase tracking-widest">Tracking provided by Wear Abbie Logistics</p>
+                                        <p className="text-[10px] text-zinc-400 text-center mt-8 font-bold uppercase tracking-widest">Tracking updates may take a few hours to appear</p>
                                     </div>
                                 </div>
                             )}

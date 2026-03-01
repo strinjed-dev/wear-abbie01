@@ -2,23 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { ShoppingBag, ChevronLeft, Heart, Share2, Sparkles, Truck, ShieldCheck, CreditCard, Star, Plus, Minus, ArrowRight, X } from 'lucide-react';
+import { ShoppingBag, ChevronLeft, Heart, Share2, Truck, ShieldCheck, CreditCard, Star, Plus, Minus, ArrowRight, X } from 'lucide-react';
 import productsData from '@/data/products.json';
-import { useCart } from '@/context/CartContext';
+import { useCart, Product } from '@/context/CartContext';
 import MemberNavbar from '@/components/layout/MemberNavbar';
 import Footer from '@/components/layout/Footer';
 
-// --- Types ---
-interface Product {
-    id: string;
-    name: string;
-    price: number;
-    category: string;
-    image: string;
-    inStock: boolean;
-    isCOD?: boolean;
-    description?: string;
-}
 
 export default function ProductDetailPage() {
     const { id } = useParams();
@@ -37,23 +26,23 @@ export default function ProductDetailPage() {
     }, [id]);
 
     const handleAddToCart = () => {
-    if (!product) return;
+        if (!product) return;
 
-    for (let i = 0; i < quantity; i++) {
-        addToCart({
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            category: product.category,
-            image: product.image,
-            inStock: product.inStock,
-            description: product.description || '',
-        });
-    }
+        for (let i = 0; i < quantity; i++) {
+            addToCart({
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                category: product.category,
+                image: product.image,
+                inStock: product.inStock,
+                description: product.description || '',
+            });
+        }
 
-    setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 2000);
-};
+        setAddedFeedback(true);
+        setTimeout(() => setAddedFeedback(false), 2000);
+    };
 
     if (isLoading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">

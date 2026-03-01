@@ -1,34 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, Users, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Sparkles, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag } from 'lucide-react';
 import { uploadImage, supabase } from '@/lib/supabase';
-import { useCart } from '@/context/CartContext';
-import { migrateLocalImages } from '@/app/actions/migrateImages';
+import { useCart, Product, Order } from '@/context/CartContext';
+import { syncCatalogToSupabase } from '@/app/actions/migrateImages';
 
 // --- Monolithic Admin Component ---
-interface Product {
-    id?: string;
-    name: string;
-    price: number | string;
-    category: string;
-    size: string;
-    type: string;
-    description: string;
-    stock: number | string;
-    image_url: string;
-}
-
-interface Order {
-    id: string;
-    user_id: string;
-    status: string;
-    total_amount: number;
-    profiles?: { full_name: string; email: string };
-    shipping_area: string;
-    shipping_state: string;
-    items: any[];
-}
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
@@ -44,6 +22,9 @@ export default function AdminDashboard() {
     const [products, setProducts] = useState<Product[]>([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const { orders: localOrders, setIsCartOpen } = useCart();
+    const [riders, setRiders] = useState<any[]>([]);
+    const [updatingDispatch, setUpdatingDispatch] = useState<string | null>(null);
+    const [dispatchLocation, setDispatchLocation] = useState("");
 
     const [newProduct, setNewProduct] = useState<Product>({
         name: '',
@@ -53,7 +34,9 @@ export default function AdminDashboard() {
         type: 'Perfume',
         description: '',
         stock: 0,
-        image_url: ''
+        image_url: '',
+        is_active: true,
+        is_cod: true
     });
 
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -117,6 +100,13 @@ export default function AdminDashboard() {
             .select('*')
             .order('name', { ascending: true });
         if (productsData) setProducts(productsData);
+
+        // Fetch all riders
+        const { data: ridersData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('role', 'rider');
+        if (ridersData) setRiders(ridersData);
     };
 
     const addOrUpdateProduct = async () => {
@@ -131,14 +121,17 @@ export default function AdminDashboard() {
                 size: payload.size,
                 type: payload.type,
                 description: payload.description,
-                stock: parseInt(payload.stock.toString()),
-                image_url: payload.image_url || url
+                image_url: url || payload.image_url, // Prefer new upload URL over payload
+                is_active: payload.is_active ?? true,
+                is_cod: payload.is_cod ?? true,
+                fragrance_notes: payload.fragrance_notes || '',
+                stock: parseInt(payload.stock.toString())
             });
 
         if (!error) {
             alert(editingProduct ? "Product updated!" : "New product launched!");
             setEditingProduct(null);
-            setNewProduct({ name: '', price: '', category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '' });
+            setNewProduct({ name: '', price: '', category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true });
             setUrl("");
             setRefreshTrigger((p: number) => p + 1);
         } else {
@@ -157,8 +150,37 @@ export default function AdminDashboard() {
         }
     };
 
+    const assignRider = async (orderId: string, riderId: string) => {
+        const { error } = await supabase
+            .from('orders')
+            .update({ rider_id: riderId })
+            .eq('id', orderId);
+
+        if (!error) {
+            setRefreshTrigger((p: number) => p + 1);
+        } else {
+            alert("Assignment failed: " + error.message);
+        }
+    };
+
+    const updateOrderLocation = async (orderId: string, location: string) => {
+        const { error } = await supabase
+            .from('orders')
+            .update({ current_location: location })
+            .eq('id', orderId);
+
+        if (!error) {
+            setUpdatingDispatch(null);
+            setDispatchLocation("");
+            setRefreshTrigger((p: number) => p + 1);
+        } else {
+            alert("Location update failed: " + error.message);
+        }
+    };
+
     const toggleStock = async (product: Product) => {
-        const newStock = (parseInt(product.stock.toString()) > 0) ? 0 : 50;
+        const currentStock = parseInt((product.stock ?? 0).toString());
+        const newStock = currentStock > 0 ? 0 : 50;
         const { error } = await supabase
             .from('products')
             .update({ stock: newStock })
@@ -169,7 +191,8 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateOrderStatus = async (orderId: string, userId: string, newStatus: string) => {
+    const updateOrderStatus = async (orderId: string, userId?: string, newStatus?: string) => {
+        if (!newStatus) return;
         const { error } = await supabase
             .from('orders')
             .update({ status: newStatus })
@@ -219,6 +242,26 @@ export default function AdminDashboard() {
         }
     };
 
+    const [isSyncing, setIsSyncing] = useState(false);
+    const handleGlobalSync = async () => {
+        if (!confirm("This will upload all 587 perfumes from the local catalog to Supabase Storage and update the database. Continue?")) return;
+        setIsSyncing(true);
+        try {
+            const result = await syncCatalogToSupabase() as any;
+            if (result.success) {
+                alert(`Sync Complete! Inserted: ${result.inserted}, Uploaded: ${result.uploaded}. Check console for any skipped items.`);
+                console.log("Sync Results:", result);
+                setRefreshTrigger((p: number) => p + 1);
+            } else {
+                alert("Sync failed: " + result.message);
+            }
+        } catch (err) {
+            alert("Sync crashed. Check logs.");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     if (authChecking) {
         return (
             <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
@@ -239,8 +282,8 @@ export default function AdminDashboard() {
                 <div className="max-w-md w-full animate-in">
                     <div className="text-center mb-12">
                         <img src="/logo.png" alt="Wear Abbie" className="h-12 mx-auto mb-8 brightness-0 invert" />
-                        <h1 className="text-3xl md:text-4xl font-serif font-black text-white mb-4 tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Autonomous Access</h1>
-                        <p className="text-zinc-500 font-medium">Please enter your Bootstrap Key to authorize this session for Wear Abbie Admin Portal.</p>
+                        <h1 className="text-3xl md:text-4xl font-serif font-black text-white mb-4 tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Admin Access</h1>
+                        <p className="text-zinc-500 font-medium">Please enter your password to authorize this session for Wear Abbie Admin Portal.</p>
                     </div>
 
                     <form onSubmit={handleAuth} className="space-y-6">
@@ -248,7 +291,7 @@ export default function AdminDashboard() {
                             <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
                             <input
                                 type="password"
-                                placeholder="Enter Bootstrap Key"
+                                placeholder="Enter Admin Password"
                                 className={`w-full bg-white/5 border ${authError ? 'border-red-500' : 'border-white/10'} rounded-full px-16 py-5 text-white text-sm font-medium focus:bg-white/10 focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all placeholder:text-zinc-700`}
                                 value={bootstrapKey}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBootstrapKey(e.target.value)}
@@ -261,7 +304,7 @@ export default function AdminDashboard() {
                         </button>
                     </form>
 
-                    <p className="mt-12 text-center text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">Secure Protocol v2.6 • Port 443 Encryption</p>
+                    <p className="mt-12 text-center text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">Protected Admin Session • Port 443 Encryption</p>
                 </div>
             </div>
         );
@@ -325,15 +368,15 @@ export default function AdminDashboard() {
                 <nav className="flex-grow space-y-3">
                     <SidebarItem icon={<LayoutDashboard size={20} />} label="Overview" active={activeTab === 'overview'} onClick={() => { setActiveTab('overview'); setIsMenuOpen(false); }} />
                     <SidebarItem icon={<Package size={20} />} label="Inventory" active={activeTab === 'inventory'} onClick={() => { setActiveTab('inventory'); setIsMenuOpen(false); }} />
-                    <SidebarItem icon={<Users size={20} />} label="Customer Registry" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); setIsMenuOpen(false); }} />
-                    <SidebarItem icon={<Truck size={20} />} label="Order Tracking" active={activeTab === 'tracking'} onClick={() => { setActiveTab('tracking'); setIsMenuOpen(false); }} />
-                    <SidebarItem icon={<HeadphonesIcon size={20} />} label="Support Tickets" active={activeTab === 'support'} onClick={() => { setActiveTab('support'); setIsMenuOpen(false); }} />
-                    <SidebarItem icon={<Gift size={20} />} label="Gifting Suite" active={activeTab === 'gifting'} onClick={() => { setActiveTab('gifting'); setIsMenuOpen(false); }} />
+                    <SidebarItem icon={<Users size={20} />} label="Users" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); setIsMenuOpen(false); }} />
+                    <SidebarItem icon={<Truck size={20} />} label="Shipments" active={activeTab === 'tracking'} onClick={() => { setActiveTab('tracking'); setIsMenuOpen(false); }} />
+                    <SidebarItem icon={<HeadphonesIcon size={20} />} label="Support" active={activeTab === 'support'} onClick={() => { setActiveTab('support'); setIsMenuOpen(false); }} />
+                    <SidebarItem icon={<Gift size={20} />} label="Gifts" active={activeTab === 'gifting'} onClick={() => { setActiveTab('gifting'); setIsMenuOpen(false); }} />
                 </nav>
 
                 <div className="mt-auto pt-10 border-t border-white/10 space-y-3">
-                    <SidebarItem icon={<Settings size={20} />} label="Portal Config" active={false} onClick={() => { }} />
-                    <SidebarItem icon={<LogOut size={20} />} label="Retract Access" active={false} onClick={handleLogout} />
+                    <SidebarItem icon={<Settings size={20} />} label="Settings" active={false} onClick={() => { }} />
+                    <SidebarItem icon={<LogOut size={20} />} label="Sign Out" active={false} onClick={handleLogout} />
                 </div>
             </aside>
 
@@ -343,10 +386,10 @@ export default function AdminDashboard() {
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Autonomous Session Active</span>
+                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Active Admin Session</span>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-serif font-black tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Wear Abbie Admin</h1>
-                        <p className="text-zinc-400 font-medium mt-2">Overseeing your signature fragrance house.</p>
+                        <p className="text-zinc-400 font-medium mt-2">Manage your catalog, orders and customers.</p>
                     </div>
 
                     <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto overflow-x-auto no-scrollbar pb-2 md:pb-0">
@@ -381,7 +424,7 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-12 md:mb-16">
                             <StatCard
                                 label="Catalog Value"
-                                value={`₦${products.reduce((acc: number, p: Product) => acc + (parseFloat(p.price.toString()) * (parseInt(p.stock.toString()) || 0)), 0).toLocaleString()}`}
+                                value={`₦${products.reduce((acc: number, p: Product) => acc + (parseFloat((p.price ?? 0).toString()) * (parseInt((p.stock ?? 0).toString()) || 0)), 0).toLocaleString()}`}
                                 sub="Total Evaluated Stock"
                                 icon={<BarChart3 size={24} />}
                                 color="border-[#D4AF37]"
@@ -408,11 +451,11 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <p className="text-xs font-black text-zinc-900 mb-1">{order.profiles?.full_name || "Guest Customer"}</p>
                                                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
-                                                    {order.shipping_area}, {order.shipping_state} • {Array.isArray(order.items) ? order.items.length : 0} items
+                                                    {order.shipping_area || 'Standard'}, {order.shipping_state || 'Nigeria'} • {Array.isArray(order.items) ? order.items.length : 0} items
                                                 </p>
                                             </div>
                                             <div className="text-right flex flex-col items-end gap-2">
-                                                <span className="font-serif font-bold text-xl text-[#3E2723]">₦{order.total_amount.toLocaleString()}</span>
+                                                <span className="font-serif font-bold text-xl text-[#3E2723]">₦{(order.total_amount ?? order.total ?? 0).toLocaleString()}</span>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${order.status === 'pending' ? 'text-amber-500 border-amber-500 bg-amber-50' : 'text-emerald-500 border-emerald-500 bg-emerald-50'}`}>
                                                         {order.status}
@@ -439,9 +482,9 @@ export default function AdminDashboard() {
                     <div className="space-y-12">
                         {/* Summary Stats Row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <StatCard label="Live Inventory" value={products.length.toString()} sub="Verified Scents" icon={<Package size={24} />} color="border-[#D4AF37]" />
-                            <StatCard label="Out of Essence" value={products.filter((p: Product) => !p.stock || parseInt(p.stock.toString()) === 0).length.toString()} sub="Request Restock" icon={<X size={24} />} color="border-red-400" />
-                            <StatCard label="Stock Value" value={`₦${products.reduce((acc: number, p: Product) => acc + (parseFloat(p.price.toString()) * (parseInt(p.stock.toString()) || 0)), 0).toLocaleString()}`} sub="Current Evaluation" icon={<BarChart3 size={24} />} color="border-emerald-400" />
+                            <StatCard label="Products" value={products.length.toString()} sub="Verified Items" icon={<Package size={24} />} color="border-[#D4AF37]" />
+                            <StatCard label="Low Stock" value={products.filter((p: Product) => (parseInt((p.stock ?? 0).toString()) || 0) === 0).length.toString()} sub="Items needing restock" icon={<X size={24} />} color="border-red-400" />
+                            <StatCard label="Total Value" value={`₦${products.reduce((acc: number, p: Product) => acc + (parseFloat((p.price ?? 0).toString()) * (parseInt((p.stock ?? 0).toString()) || 0)), 0).toLocaleString()}`} sub="Current Evaluation" icon={<BarChart3 size={24} />} color="border-emerald-400" />
                         </div>
 
                         {/* Inventory Content */}
@@ -454,18 +497,26 @@ export default function AdminDashboard() {
                                 <div className="space-y-6">
                                     <div className="p-8 bg-zinc-900 rounded-3xl text-white relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
-                                            <Sparkles size={80} />
+                                            <Package size={80} />
                                         </div>
-                                        <h4 className="font-serif text-2xl mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>Elite House Management</h4>
+                                        <h4 className="font-serif text-2xl mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>Catalog Control</h4>
                                         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] leading-relaxed mb-6">
-                                            Your signature collection is currently being viewed by <span className="text-[#D4AF37]">12 active guests</span>.
+                                            Manage your product listings and syncing here.
                                         </p>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-4 mb-6">
                                             <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
                                                 <div className="h-full bg-[#D4AF37] w-[65%]"></div>
                                             </div>
                                             <span className="text-[10px] font-black">65% STOCK</span>
                                         </div>
+
+                                        <button
+                                            onClick={handleGlobalSync}
+                                            disabled={isSyncing}
+                                            className="w-full bg-[#D4AF37] text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                                        >
+                                            <Database size={16} /> {isSyncing ? "Syncing Catalog..." : "Restore All from Catalog"}
+                                        </button>
                                     </div>
 
                                     <div className="p-6 bg-zinc-50 rounded-2xl border border-zinc-100">
@@ -481,7 +532,7 @@ export default function AdminDashboard() {
                             <div className="lg:w-1/3 bg-zinc-50/50 p-8 rounded-[30px] border border-zinc-100 h-fit sticky top-12">
                                 <h3 className="text-xl font-serif font-black mb-8 flex items-center gap-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>
                                     {editingProduct ? <Edit3 className="w-5 h-5 text-[#D4AF37]" /> : <Plus className="w-5 h-5 text-[#D4AF37]" />}
-                                    {editingProduct ? 'Update Essence' : 'Launch New Essence'}
+                                    {editingProduct ? 'Update Product' : 'Add New Product'}
                                 </h3>
 
                                 <div className="space-y-6">
@@ -573,9 +624,48 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex items-center gap-3 p-4 bg-white border border-zinc-100 rounded-2xl">
+                                            <input
+                                                type="checkbox"
+                                                id="is_active_check"
+                                                className="w-4 h-4 accent-[#D4AF37]"
+                                                checked={editingProduct ? editingProduct.is_active : newProduct.is_active}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, is_active: e.target.checked }) : setNewProduct({ ...newProduct, is_active: e.target.checked })}
+                                            />
+                                            <label htmlFor="is_active_check" className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Publicly Visible</label>
+                                        </div>
+                                        <div className="flex items-center gap-3 p-4 bg-white border border-zinc-100 rounded-2xl">
+                                            <input
+                                                type="checkbox"
+                                                id="is_cod_check"
+                                                className="w-4 h-4 accent-[#D4AF37]"
+                                                checked={editingProduct ? editingProduct.is_cod : newProduct.is_cod}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, is_cod: e.target.checked }) : setNewProduct({ ...newProduct, is_cod: e.target.checked })}
+                                            />
+                                            <label htmlFor="is_cod_check" className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Allow COD</label>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Fragrance Notes (Top, Heart, Base)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Bergamot, Jasmine, Sandalwood..."
+                                            className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
+                                            value={editingProduct ? editingProduct.fragrance_notes : newProduct.fragrance_notes}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, fragrance_notes: e.target.value }) : setNewProduct({ ...newProduct, fragrance_notes: e.target.value })}
+                                        />
+                                    </div>
+
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Image Setup</label>
                                         <div className="bg-white border border-zinc-100 rounded-2xl p-4 flex items-center gap-4">
+                                            {(url || (editingProduct && editingProduct.image_url)) && (
+                                                <div className="w-12 h-12 bg-zinc-50 rounded-xl overflow-hidden border border-zinc-100 flex-shrink-0">
+                                                    <img src={url || editingProduct?.image_url} alt="Preview" className="w-full h-full object-cover" />
+                                                </div>
+                                            )}
                                             <input
                                                 type="file"
                                                 className="hidden"
@@ -590,11 +680,16 @@ export default function AdminDashboard() {
                                                 <Upload size={18} />
                                             </label>
                                             <div className="flex-1">
-                                                <p className="text-[9px] font-black uppercase tracking-widest mb-1">{file ? file.name : "Choose File"}</p>
-                                                <button onClick={handleUpload} className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest underline disabled:opacity-50" disabled={!file || uploading}>
-                                                    {uploading ? "Processing..." : "Confirm Upload"}
+                                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 truncate max-w-[100px]">{file ? file.name : "Select Image"}</p>
+                                                <button onClick={() => handleUpload()} className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest underline disabled:opacity-50" disabled={!file || uploading}>
+                                                    {uploading ? "Uploading..." : (url ? "Update Image" : "Save Image")}
                                                 </button>
                                             </div>
+                                            {url && (
+                                                <button onClick={() => setUrl('')} className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
+                                                    Reset
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -602,7 +697,7 @@ export default function AdminDashboard() {
                                         onClick={addOrUpdateProduct}
                                         className="w-full bg-[#3E2723] text-white py-5 rounded-[20px] font-black uppercase tracking-widest text-[11px] shadow-xl shadow-black/10 hover:bg-black transition-all"
                                     >
-                                        {editingProduct ? 'Finalize Changes' : 'Publish Product'}
+                                        {editingProduct ? 'Update Product' : 'Add to Catalog'}
                                     </button>
                                     {editingProduct && (
                                         <button
@@ -618,7 +713,7 @@ export default function AdminDashboard() {
                             {/* Product List Side */}
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Verified Registry</h3>
+                                    <h3 className="text-xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Product List</h3>
                                     <div className="bg-zinc-50 px-4 py-2 rounded-full border border-zinc-100 flex items-center gap-2">
                                         <Database className="w-3.5 h-3.5 text-[#D4AF37]" />
                                         <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{products.length} Products Active</span>
@@ -631,13 +726,13 @@ export default function AdminDashboard() {
                                             <img src={p.image_url || '/logo.png'} className="w-20 h-20 rounded-2xl object-cover bg-zinc-50 border border-zinc-100" />
                                             <div className="flex-grow">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`w-2 h-2 rounded-full ${(parseInt(p.stock.toString()) > 0) ? 'bg-emerald-500' : 'bg-red-400 animate-pulse'}`}></span>
+                                                    <span className={`w-2 h-2 rounded-full ${(parseInt((p.stock ?? 0).toString()) > 0) ? 'bg-emerald-500' : 'bg-red-400 animate-pulse'}`}></span>
                                                     <h4 className="font-serif font-black text-lg">{p.name}</h4>
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
                                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 px-3 py-1 rounded-full">{p.type}</span>
                                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 px-3 py-1 rounded-full">{p.size}</span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] border border-[#D4AF37]/30 px-3 py-1 rounded-full">₦{parseFloat(p.price.toString()).toLocaleString()}</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] border border-[#D4AF37]/30 px-3 py-1 rounded-full">₦{parseFloat((p.price ?? 0).toString()).toLocaleString()}</span>
                                                 </div>
                                             </div>
                                             <div className="flex md:flex-col gap-2">
@@ -649,7 +744,7 @@ export default function AdminDashboard() {
                                                 </button>
                                                 <button
                                                     onClick={() => toggleStock(p)}
-                                                    className={`p-3 rounded-xl transition-all ${(parseInt(p.stock.toString()) > 0) ? 'bg-zinc-50 text-zinc-400 hover:text-[#D4AF37]' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}
+                                                    className={`p-3 rounded-xl transition-all ${(parseInt((p.stock ?? 0).toString()) > 0) ? 'bg-zinc-50 text-zinc-400 hover:text-[#D4AF37]' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}
                                                     title="Toggle Stock Status"
                                                 >
                                                     <Package size={18} />
@@ -666,8 +761,8 @@ export default function AdminDashboard() {
 
                                     {products.length === 0 && (
                                         <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-zinc-100 rounded-[30px] opacity-50">
-                                            <Sparkles className="w-8 h-8 text-zinc-300 mb-4" />
-                                            <p className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Registry is currently vacant</p>
+                                            <Package className="w-8 h-8 text-zinc-300 mb-4" />
+                                            <p className="font-black uppercase text-[10px] tracking-widest text-zinc-400">No products found in the catalog</p>
                                         </div>
                                     )}
                                 </div>
@@ -680,11 +775,11 @@ export default function AdminDashboard() {
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-zinc-100 min-h-[500px]">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
                             <div>
-                                <h3 className="text-2xl font-serif font-black mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Customer Registry</h3>
+                                <h3 className="text-2xl font-serif font-black mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Customer List</h3>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Verified User Accounts</p>
                             </div>
                             <div className="bg-zinc-50 px-6 py-3 rounded-full border border-zinc-100">
-                                <span className="text-xs font-black text-[#D4AF37]">{users.length} REGISTERED SOULS</span>
+                                <span className="text-xs font-black text-[#D4AF37]">{users.length} REGISTERED USERS</span>
                             </div>
                         </div>
 
@@ -719,8 +814,8 @@ export default function AdminDashboard() {
                 <div className="space-y-8">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         <div>
-                            <h3 className="text-2xl font-serif font-black mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order Tracking Panel</h3>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Manage Logistics & Fulfillment</p>
+                            <h3 className="text-2xl font-serif font-black mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Manage Shipments</h3>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Fulfillment & Tracking</p>
                         </div>
                         <div className="flex gap-4">
                             <a
@@ -761,6 +856,53 @@ export default function AdminDashboard() {
                                                 <StatusPill active={order.status === 'shipped'} label="In Transit" />
                                                 <StatusPill active={order.status === 'delivered'} label="Delivered" />
                                             </div>
+
+                                            {/* Dispatch Management Area */}
+                                            {order.status !== 'pending' && (
+                                                <div className="pt-6 border-t border-zinc-50 space-y-4">
+                                                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                        <div className="w-full sm:w-1/2">
+                                                            <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block">Assigned Rider</label>
+                                                            <select
+                                                                className="w-full bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37]"
+                                                                value={order.rider_id || ""}
+                                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => assignRider(order.id, e.target.value)}
+                                                            >
+                                                                <option value="">Select Rider...</option>
+                                                                {riders.map((r: any) => (
+                                                                    <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="w-full sm:w-1/2">
+                                                            <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block">Live Location Update</label>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder={order.current_location || "e.g. Near Lagos Island"}
+                                                                    className="flex-1 bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold outline-none"
+                                                                    onFocus={() => {
+                                                                        setUpdatingDispatch(order.id);
+                                                                        setDispatchLocation(order.current_location || "");
+                                                                    }}
+                                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                        if (updatingDispatch === order.id) setDispatchLocation(e.target.value);
+                                                                    }}
+                                                                    value={updatingDispatch === order.id ? dispatchLocation : (order.current_location || "")}
+                                                                />
+                                                                {updatingDispatch === order.id && (
+                                                                    <button
+                                                                        onClick={() => updateOrderLocation(order.id, dispatchLocation)}
+                                                                        className="bg-[#D4AF37] text-white px-4 rounded-xl text-[9px] font-black uppercase"
+                                                                    >
+                                                                        Save
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col sm:flex-row md:flex-col gap-3 justify-center min-w-[200px]">
@@ -811,7 +953,7 @@ export default function AdminDashboard() {
                         </h3>
                         <div className="flex flex-col items-center justify-center p-10 mt-4 rounded-3xl bg-[#D4AF37]/5 border border-[#D4AF37]/20 border-dashed">
                             <Gift className="w-8 h-8 text-[#D4AF37]/50 mb-4" />
-                            <p className="font-bold uppercase tracking-widest text-[10px] text-[#D4AF37]/50">No new gifting requests observed.</p>
+                            <p className="font-bold uppercase tracking-widest text-[10px] text-[#D4AF37]/50 text-center">Your elite gifting suite is clear.<br />No pending requests.</p>
                         </div>
                     </div>
                 )}

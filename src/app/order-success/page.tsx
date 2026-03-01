@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Truck, ArrowRight, Sparkles, Copy, Check } from 'lucide-react';
+import { CheckCircle2, Truck, ArrowRight, Copy, Check, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 
 export default function OrderSuccessPage() {
@@ -9,9 +9,17 @@ export default function OrderSuccessPage() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        // Try to read real order ID from sessionStorage (set at checkout)
+        // 1. Try to read from URL params (Direct redirect from Paystack)
+        const params = new URLSearchParams(window.location.search);
+        const ref = params.get('ref') || params.get('reference');
+
+        // 2. Try to read real order ID from sessionStorage (set at checkout)
         const saved = sessionStorage.getItem('wear_abbie_last_order_id');
-        if (saved) {
+
+        if (ref) {
+            setOrderId(ref);
+            sessionStorage.removeItem('wear_abbie_last_order_id');
+        } else if (saved) {
             setOrderId(saved);
             sessionStorage.removeItem('wear_abbie_last_order_id');
         } else {
@@ -46,7 +54,7 @@ export default function OrderSuccessPage() {
                 </div>
 
                 <div className="inline-flex items-center gap-3 bg-zinc-50 border border-zinc-100 rounded-full px-6 py-2 mb-10">
-                    <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                    <ShoppingBag className="w-4 h-4 text-[#D4AF37]" />
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Order Dispatched to Queue</span>
                 </div>
 

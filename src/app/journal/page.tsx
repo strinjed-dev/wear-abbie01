@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, ShoppingBag, User, Menu, X, ArrowRight, Sparkles, ShieldCheck, Truck, CreditCard } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, ArrowRight, BookOpen, ShieldCheck, Truck, CreditCard } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
 
 export default function Journal() {
@@ -37,7 +37,7 @@ export default function Journal() {
 
             {/* Top Banner */}
             <div className="bg-black text-white text-[9px] md:text-xs py-3 md:py-4 text-center tracking-[0.3em] md:tracking-[0.4em] font-black uppercase">
-                <span className="text-[#D4AF37]">★</span> Smelling nice is our priority • <span className="text-[#D4AF37]">★</span>
+                Smelling nice is our priority • Worldwide Quality Assurance
             </div>
 
             {/* Navbar */}
@@ -83,7 +83,7 @@ export default function Journal() {
                 {/* Journal Hero */}
                 <header className="container mx-auto px-4 py-16 md:py-32 text-center max-w-4xl">
                     <div className="inline-flex items-center gap-2 text-[#D4AF37] font-black text-[10px] uppercase tracking-[0.4em] mb-8">
-                        <Sparkles className="w-3 h-3" /> The Wear Abbie Narrative
+                        <BookOpen className="w-3 h-3" /> The Wear Abbie Narrative
                     </div>
                     <h1 className="text-5xl md:text-[7rem] font-serif font-black mb-10 md:mb-16 tracking-tighter leading-[0.9]" style={{ fontFamily: 'var(--font-playfair), serif' }}>
                         Smelling Nice <br />

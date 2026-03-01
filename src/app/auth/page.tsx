@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Sparkles, User, Mail, Lock, CheckCircle2, ShoppingBag, ArrowRight, Chrome } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, CheckCircle2, ShoppingBag, ArrowRight, Chrome } from 'lucide-react';
 import { signInWithGoogle, supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
@@ -121,7 +121,7 @@ export default function AuthPage() {
 
                 <div className="relative z-10 max-w-xl text-center">
                     <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-6 py-2 mb-10">
-                        <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                        <ShoppingBag className="w-4 h-4 text-[#D4AF37]" />
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Wear Abbie Signature</span>
                     </div>
                     <h2 className="text-6xl md:text-7xl font-serif font-black text-white mb-8 tracking-tighter" style={{ fontFamily: 'var(--font-playfair), serif' }}>
@@ -169,109 +169,131 @@ export default function AuthPage() {
                         </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {authError && (
-                            <div className="p-4 rounded-xl text-xs font-bold text-center bg-red-50 text-red-500 animate-in">
-                                {authError}
+                    {isSuccess ? (
+                        <div className="text-center space-y-8 py-12 animate-in">
+                            <div className="w-24 h-24 bg-emerald-50 rounded-[40px] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/10">
+                                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                             </div>
-                        )}
-                        {isSuccess && (
-                            <div className="p-4 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-500 animate-in">
-                                Authenticated Successfully. Redirecting to your dashboard...
+                            <div className="space-y-4">
+                                <h3 className="text-3xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>
+                                    {mode === 'forgot_password' ? 'Portal Reset Sent' : 'Registry Confirmed'}
+                                </h3>
+                                <p className="text-zinc-500 font-medium leading-relaxed px-4">
+                                    {mode === 'forgot_password'
+                                        ? 'We have dispatched a cryptographic reset link to your scent registry email. Please follow the instructions to restore access.'
+                                        : 'Account created successfully. Your elite scent journey is being initialized. Redirecting to your personal vault...'}
+                                </p>
                             </div>
-                        )}
-                        {mode === 'signup' && (
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Full Name</label>
-                                <div className="relative">
-                                    <User className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
-                                    <input
-                                        type="text"
-                                        placeholder="Ibrahim Tijani"
-                                        required
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
-                            <div className="relative">
-                                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
-                                <input
-                                    type="email"
-                                    placeholder="your@email.com"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
-                                />
-                            </div>
+                            {mode === 'forgot_password' && (
+                                <button
+                                    onClick={() => { setIsSuccess(false); setMode('login'); }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b border-[#D4AF37]/30 hover:border-[#D4AF37] transition-all pb-1"
+                                >
+                                    Return to Authentication
+                                </button>
+                            )}
                         </div>
-
-                        {mode !== 'forgot_password' && (
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Password</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
-                                    <input
-                                        type="password"
-                                        placeholder="••••••••"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
-                                    />
-                                </div>
-                                {mode === 'login' && (
-                                    <div className="text-right mt-2">
-                                        <button type="button" onClick={() => setMode('forgot_password')} className="text-[#D4AF37] hover:text-black transition-colors text-[10px] font-black uppercase tracking-widest">
-                                            Forgot Password?
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <button
-                            disabled={isLoading}
-                            className="w-full bg-[#3E2723] text-white py-6 rounded-full font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-[#3E2723]/20 hover:bg-black transition-all flex items-center justify-center gap-4 relative overflow-hidden group"
-                        >
-                            <span className={isLoading ? 'opacity-0' : 'flex items-center gap-4'}>
-                                {mode === 'login' ? 'Access Account' : mode === 'signup' ? 'Create Account' : 'Send Reset Link'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </span>
-                            {isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            {authError && (
+                                <div className="p-4 rounded-xl text-xs font-bold text-center bg-red-50 text-red-500 animate-in">
+                                    {authError}
                                 </div>
                             )}
-                        </button>
 
-                        <div className="flex items-center gap-4 py-2">
-                            <div className="h-px bg-zinc-100 flex-1"></div>
-                            <span className="text-[10px] uppercase font-black tracking-widest text-zinc-300">OR</span>
-                            <div className="h-px bg-zinc-100 flex-1"></div>
-                        </div>
+                            {mode === 'signup' && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Full Name</label>
+                                    <div className="relative">
+                                        <User className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
+                                        <input
+                                            type="text"
+                                            placeholder="Full Name"
+                                            required
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
+                                    <input
+                                        type="email"
+                                        placeholder="your@email.com"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {mode !== 'forgot_password' && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Password</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-300" />
+                                        <input
+                                            type="password"
+                                            placeholder="••••••••"
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-zinc-50 border border-zinc-100 rounded-full px-16 py-5 text-sm font-medium focus:bg-white focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all"
+                                        />
+                                    </div>
+                                    {mode === 'login' && (
+                                        <div className="text-right mt-2">
+                                            <button type="button" onClick={() => setMode('forgot_password')} className="text-[#D4AF37] hover:text-black transition-colors text-[10px] font-black uppercase tracking-widest">
+                                                Forgot Password?
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <button
-                                type="button"
-                                onClick={signInWithGoogle}
-                                className="w-full bg-white border border-zinc-100 text-zinc-900 py-5 rounded-full font-black uppercase tracking-widest text-[10px] hover:border-zinc-300 transition-all flex items-center justify-center gap-3"
+                                disabled={isLoading}
+                                className="w-full bg-[#3E2723] text-white py-6 rounded-full font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-[#3E2723]/20 hover:bg-black transition-all flex items-center justify-center gap-4 relative overflow-hidden group"
                             >
-                                <Chrome className="w-4 h-4" /> Google
+                                <span className={isLoading ? 'opacity-0' : 'flex items-center gap-4'}>
+                                    {mode === 'login' ? 'Access Account' : mode === 'signup' ? 'Create Account' : 'Send Reset Link'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </span>
+                                {isLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                    </div>
+                                )}
                             </button>
-                            <a
-                                href="/shop"
-                                className="w-full bg-zinc-50 border border-zinc-100 text-zinc-500 py-5 rounded-full font-black uppercase tracking-widest text-[10px] hover:border-zinc-200 transition-all flex items-center justify-center gap-3"
-                            >
-                                <ShoppingBag className="w-4 h-4" /> Browse Shop
-                            </a>
-                        </div>
-                    </form>
+
+                            <div className="flex items-center gap-4 py-2">
+                                <div className="h-px bg-zinc-100 flex-1"></div>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-zinc-300">OR</span>
+                                <div className="h-px bg-zinc-100 flex-1"></div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button
+                                    type="button"
+                                    onClick={signInWithGoogle}
+                                    className="w-full bg-white border border-zinc-100 text-zinc-900 py-5 rounded-full font-black uppercase tracking-widest text-[10px] hover:border-zinc-300 transition-all flex items-center justify-center gap-3"
+                                >
+                                    <Chrome className="w-4 h-4" /> Google
+                                </button>
+                                <a
+                                    href="/shop"
+                                    className="w-full bg-zinc-50 border border-zinc-100 text-zinc-500 py-5 rounded-full font-black uppercase tracking-widest text-[10px] hover:border-zinc-200 transition-all flex items-center justify-center gap-3"
+                                >
+                                    <ShoppingBag className="w-4 h-4" /> Browse Shop
+                                </a>
+                            </div>
+                        </form>
+                    )}
 
                     <div className="mt-12 text-center">
                         <p className="text-zinc-500 font-medium text-sm">

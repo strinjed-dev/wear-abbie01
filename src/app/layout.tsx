@@ -17,6 +17,7 @@ const playfair = Playfair_Display({
 import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "@/components/layout/CartDrawer";
 import ToastNotification from "@/components/ui/ToastNotification";
+import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
     title: "Wear Abbie | Signature Fragrances",
@@ -35,12 +36,14 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" className={`${outfit.variable} ${playfair.variable}`}>
-            <body className="antialiased">
+            <body className="antialiased font-outfit">
                 <CartProvider>
+                    <NextTopLoader color="#D4AF37" showSpinner={false} height={3} />
                     {children}
                     <CartDrawer />
                     <ToastNotification />
                 </CartProvider>
+                <script src="https://js.paystack.co/v1/inline.js" async></script>
             </body>
         </html>
     );

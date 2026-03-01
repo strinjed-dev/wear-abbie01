@@ -67,7 +67,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                             <h2 className="text-xl md:text-2xl font-serif font-black tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>{userDisplay.name}</h2>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mt-1">Elite Membership Active</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mt-1">Valued Member</p>
                         </div>
                     </div>
 
@@ -82,7 +82,7 @@ export default function ProfilePage() {
                             onClick={async () => { await supabase.auth.signOut(); router.push('/'); }}
                             className="flex items-center gap-4 text-zinc-400 hover:text-red-500 transition-colors uppercase font-black text-[10px] tracking-widest"
                         >
-                            <LogOut className="w-5 h-5" /> Retract Access
+                            <LogOut className="w-5 h-5" /> Sign Out
                         </button>
                     </div>
                 </aside>
@@ -95,7 +95,7 @@ export default function ProfilePage() {
                                 <header className="flex justify-between items-end">
                                     <div>
                                         <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Activities</p>
-                                        <h3 className="text-2xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Recent Dispatches</h3>
+                                        <h3 className="text-2xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order History</h3>
                                     </div>
                                 </header>
 
@@ -126,11 +126,11 @@ export default function ProfilePage() {
                                 <div className="p-10 bg-[#3E2723] rounded-[40px] text-white flex flex-col md:flex-row items-center justify-between gap-8 group cursor-pointer overflow-hidden relative shadow-2xl">
                                     <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#D4AF37]/10 rounded-full blur-3xl group-hover:bg-[#D4AF37]/20 transition-all duration-1000"></div>
                                     <div className="relative z-10 text-center md:text-left">
-                                        <h4 className="text-2xl md:text-3xl font-serif font-black mb-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>Begin a New Selection</h4>
-                                        <p className="text-white/50 text-[11px] font-black uppercase tracking-widest">Curated fragrances awaiting your signature.</p>
+                                        <h4 className="text-2xl md:text-3xl font-serif font-black mb-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>Find Your Next Scent</h4>
+                                        <p className="text-white/50 text-[11px] font-black uppercase tracking-widest">Browse our latest arrivals and signature collections.</p>
                                     </div>
                                     <a href="/shop" className="relative z-10 bg-[#D4AF37] text-white px-10 py-5 rounded-full font-black uppercase tracking-widest text-[11px] shadow-xl hover:scale-105 transition-all flex items-center gap-4">
-                                        Explore Boutique <ShoppingBag className="w-4 h-4" />
+                                        Browse Shop <ShoppingBag className="w-4 h-4" />
                                     </a>
                                 </div>
                             </section>
@@ -139,8 +139,8 @@ export default function ProfilePage() {
                         {activeSection === 'settings' && (
                             <section className="space-y-12">
                                 <header>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-2">Account Intel</p>
-                                    <h3 className="text-3xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Personal Configuration</h3>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-2">Account Details</p>
+                                    <h3 className="text-3xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Profile Settings</h3>
                                 </header>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -160,7 +160,7 @@ export default function ProfilePage() {
                                             <button className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest border-b border-[#D4AF37]">Modify</button>
                                         </div>
                                         <div>
-                                            <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Authenticated Email</h4>
+                                            <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Email Address</h4>
                                             <p className="font-bold text-lg">{userDisplay.email}</p>
                                         </div>
                                     </div>
@@ -170,7 +170,7 @@ export default function ProfilePage() {
                                             <button className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest border-b border-[#D4AF37]">Modify</button>
                                         </div>
                                         <div>
-                                            <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Logistics Contact</h4>
+                                            <h4 className="font-black text-xs uppercase tracking-widest text-zinc-400 mb-2">Contact Phone</h4>
                                             <p className="font-bold text-lg">{userDisplay.phone}</p>
                                         </div>
                                     </div>
@@ -181,8 +181,8 @@ export default function ProfilePage() {
                                         </div>
                                         <div>
                                             <h4 className="font-black text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">Authorization</h4>
-                                            <p className="font-black text-xs uppercase tracking-widest text-zinc-400">Bootstrap Key Required</p>
-                                            <h3 className="text-xl font-serif font-black group-hover:text-[#D4AF37] transition-all" style={{ fontFamily: 'var(--font-playfair), serif' }}>Elite Admin Access</h3>
+                                            <p className="font-black text-xs uppercase tracking-widest text-zinc-400">Security Access Required</p>
+                                            <h3 className="text-xl font-serif font-black group-hover:text-[#D4AF37] transition-all" style={{ fontFamily: 'var(--font-playfair), serif' }}>Admin Dashboard</h3>
                                         </div>
                                     </div>
                                 </div>

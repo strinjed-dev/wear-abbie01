@@ -88,14 +88,14 @@ export default function TrackingPage() {
             `}</style>
 
             {/* Navbar */}
-            <nav className="border-b border-zinc-100 py-5 bg-white sticky top-0 z-50">
+            <nav className="border-b border-zinc-100 py-6 md:py-8 bg-white sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-                    <a href="/"><img src="/logo.png" alt="Wear Abbie" className="h-8 md:h-10" /></a>
-                    <div className="hidden lg:flex gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    <a href="/"><img src="/logo.png" alt="Wear Abbie" className="h-12 md:h-16" /></a>
+                    <div className="hidden lg:flex gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">
                         <a href="/" className="hover:text-[#D4AF37] transition-colors">Home</a>
-                        <a href="/shop" className="hover:text-[#D4AF37] transition-colors">Collections</a>
+                        <a href="/shop" className="hover:text-[#D4AF37] transition-colors">Shop Scents</a>
                     </div>
-                    <a href="/auth" className="hover:text-[#D4AF37] transition-colors uppercase font-black tracking-widest text-[10px]">My Account</a>
+                    <a href="/auth" className="hover:text-[#D4AF37] transition-colors uppercase font-black tracking-[0.2em] text-[10px] bg-zinc-50 px-6 py-3 rounded-full border border-zinc-100">My Account</a>
                 </div>
             </nav>
 
@@ -108,7 +108,7 @@ export default function TrackingPage() {
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Live Order Tracker</span>
                         </div>
                         <h1 className="text-4xl md:text-6xl font-serif font-black mb-6 tracking-tighter" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                            Trace Your <br /><span className="text-[#D4AF37] italic font-light">Signature.</span>
+                            Track Your <br /><span className="text-[#D4AF37] italic font-light">Order.</span>
                         </h1>
                         <p className="text-zinc-500 font-medium text-lg leading-relaxed mb-12">
                             Enter your tracking code (format: <strong>WA-2026-XXXXXX</strong>) to see your order&apos;s live status.
@@ -141,7 +141,7 @@ export default function TrackingPage() {
                                 disabled={isSearching}
                                 className="w-full bg-[#3E2723] text-white py-6 rounded-full font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-[#3E2723]/20 hover:bg-black transition-all flex items-center justify-center gap-4 relative overflow-hidden"
                             >
-                                <span className={isSearching ? 'opacity-0' : 'flex items-center gap-4'}>Locate Dispatch <ArrowRight className="w-4 h-4" /></span>
+                                <span className={isSearching ? 'opacity-0' : 'flex items-center gap-4'}>Track Order <ArrowRight className="w-4 h-4" /></span>
                                 {isSearching && (
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -269,8 +269,8 @@ export default function TrackingPage() {
                             <div className="w-24 h-24 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-10 shadow-sm border border-zinc-50">
                                 <Truck className="w-10 h-10 text-zinc-200" />
                             </div>
-                            <h3 className="text-2xl font-serif font-black mb-4 tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Awaiting Code</h3>
-                            <p className="text-zinc-400 font-medium leading-relaxed">Enter your tracking code on the left to see your order's real-time status.</p>
+                            <h3 className="text-2xl font-serif font-black mb-4 tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Ready to Track</h3>
+                            <p className="text-zinc-400 font-medium leading-relaxed">Enter your tracking code on the left to see your order's status.</p>
                         </div>
                     )}
                 </div>

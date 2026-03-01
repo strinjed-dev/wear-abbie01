@@ -3,42 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
-export interface Product {
-    id: string;
-    name: string;
-    price: number;
-    category: string;
-    image: string;
-    inStock?: boolean;
-    isCOD?: boolean;
-    description?: string;
-}
+import { Product, CartItem, Order, Notification } from "@/lib/types";
 
-export interface CartItem extends Product {
-    quantity: number;
-}
-
-export interface Order {
-    id: string;
-    customer: any;
-    items: CartItem[];
-    total: number;
-    status: string;
-    date: string;
-    tracking_code?: string;
-    payment_method?: string;
-    payment_status?: string;
-}
-
-export interface Notification {
-    id: string;
-    title: string;
-    message: string;
-    type: string;
-    is_read: boolean;
-    order_id?: string;
-    created_at: string;
-}
+export type { Product, CartItem, Order, Notification };
 
 interface CartContextType {
     cart: CartItem[];
@@ -96,6 +63,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     tracking_code: o.tracking_code,
                     payment_method: o.payment_method,
                     payment_status: o.payment_status,
+                    rider_id: o.rider_id,
+                    current_location: o.current_location,
                 })));
             }
         } else {
@@ -273,48 +242,56 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const clearCart = () => setCart([]);
 
-    const placeOrder = async (customerInfo: any): Promise<{ tracking_code?: string; order_id?: string }> => {
-        const total = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0);
+    const placeOrder = async (customerInfo: any): Promise<{ tracking_code?: string; order_id?: string; total?: number }> => {
+        const total = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0) + (customerInfo.shipping_fee || 0);
         const { data: { session } } = await supabase.auth.getSession();
+
+        // Prepare order data
+        const orderData = {
+            user_id: session?.user?.id || null,
+            total_amount: total,
+            total: total, // For backward compatibility with older table schemas
+            shipping_fee: customerInfo.shipping_fee || 0,
+            shipping_address: customerInfo.address,
+            shipping_state: customerInfo.state,
+            shipping_area: customerInfo.area,
+            contact_email: customerInfo.email,
+            contact_phone: customerInfo.phone,
+            payment_method: customerInfo.payment_method || 'palmpay',
+            payment_status: 'pending',
+            status: 'pending',
+            items: cart,
+        };
 
         const { data: insertedOrder, error: insertError } = await supabase
             .from('orders')
-            .insert({
-                user_id: session?.user?.id || null,
-                total_amount: total,
-                shipping_fee: customerInfo.shipping_fee || 0,
-                shipping_address: customerInfo.address,
-                shipping_state: customerInfo.state,
-                shipping_area: customerInfo.area,
-                contact_email: customerInfo.email,
-                contact_phone: customerInfo.phone,
-                payment_method: customerInfo.payment_method || 'palmpay',
-                payment_status: 'pending',
-                status: 'pending',
-                items: cart,
-            })
-            .select('id, tracking_code')
-            .single();
+            .insert([orderData])
+            .select('*')
+            .maybeSingle();
 
         if (insertError) {
-            console.error("Order insert error:", insertError);
-            throw insertError;
+            console.error("Order insert error detailed:", JSON.stringify(insertError, null, 2));
+            throw new Error(`Order failed: ${insertError.message || 'Database error'}`);
         }
 
-        const orderId = insertedOrder?.id;
-        const trackingCode = insertedOrder?.tracking_code;
+        if (!insertedOrder) {
+            console.error("No order returned after insert");
+            throw new Error("Order creation failed - no data returned");
+        }
+
+        const orderId = insertedOrder.id;
+        const trackingCode = insertedOrder.tracking_code;
 
         if (session?.user) {
             await fetchOrders();
         } else {
-            // Guest: save tracking code to localStorage for tracking page
             const guestOrders = JSON.parse(localStorage.getItem("wear_abbie_guest_orders") || "[]");
             guestOrders.unshift({ tracking_code: trackingCode, order_id: orderId, date: new Date().toISOString(), total, items: cart });
             localStorage.setItem("wear_abbie_guest_orders", JSON.stringify(guestOrders));
         }
 
         clearCart();
-        return { tracking_code: trackingCode, order_id: orderId };
+        return { tracking_code: trackingCode, order_id: orderId, total };
     };
 
     return (
