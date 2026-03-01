@@ -26,9 +26,9 @@ export default function AdminDashboard() {
     const [updatingDispatch, setUpdatingDispatch] = useState<string | null>(null);
     const [dispatchLocation, setDispatchLocation] = useState("");
 
-    const [newProduct, setNewProduct] = useState<Product>({
+    const [newProduct, setNewProduct] = useState<any>({
         name: '',
-        price: '',
+        price: 0,
         category: 'Fragrance',
         size: '100ml',
         type: 'Perfume',
@@ -39,7 +39,7 @@ export default function AdminDashboard() {
         is_cod: true
     });
 
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
     const REQUIRED_KEY = process.env.NEXT_PUBLIC_ADMIN_BOOTSTRAP_KEY || "WEAR_ABBIE_ADMIN_2026";
 
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
         if (!error) {
             alert(editingProduct ? "Product updated!" : "New product launched!");
             setEditingProduct(null);
-            setNewProduct({ name: '', price: '', category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true });
+            setNewProduct({ name: '', price: 0, category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true });
             setUrl("");
             setRefreshTrigger((p: number) => p + 1);
         } else {
@@ -554,7 +554,10 @@ export default function AdminDashboard() {
                                                 placeholder="25000"
                                                 className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
                                                 value={editingProduct ? editingProduct.price : newProduct.price}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, price: e.target.value }) : setNewProduct({ ...newProduct, price: e.target.value })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    editingProduct ? setEditingProduct({ ...editingProduct, price: val }) : setNewProduct({ ...newProduct, price: val });
+                                                }}
                                             />
                                         </div>
                                         <div>
@@ -564,7 +567,10 @@ export default function AdminDashboard() {
                                                 placeholder="50"
                                                 className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
                                                 value={editingProduct ? editingProduct.stock : newProduct.stock}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, stock: e.target.value }) : setNewProduct({ ...newProduct, stock: e.target.value })}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    editingProduct ? setEditingProduct({ ...editingProduct, stock: val }) : setNewProduct({ ...newProduct, stock: val });
+                                                }}
                                             />
                                         </div>
                                     </div>
