@@ -246,11 +246,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const total = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0) + (customerInfo.shipping_fee || 0);
         const { data: { session } } = await supabase.auth.getSession();
 
+        // Generate dynamic tracking code
+        const year = new Date().getFullYear();
+        const rand = Math.floor(Math.random() * 900000 + 100000);
+        const generatedTrackingCode = `WA-${year}-${rand}`;
+
         // Prepare order data
         const orderData = {
             user_id: session?.user?.id || null,
             total_amount: total,
             total: total, // For backward compatibility with older table schemas
+            tracking_code: generatedTrackingCode,
             shipping_fee: customerInfo.shipping_fee || 0,
             shipping_address: customerInfo.address,
             shipping_state: customerInfo.state,

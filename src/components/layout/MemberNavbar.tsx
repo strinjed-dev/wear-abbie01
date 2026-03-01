@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, Search, User, X, LogOut, LayoutDashboard, Bell, Store } from "lucide-react";
+import { ShoppingBag, Search, User, X, LogOut, LayoutDashboard, Bell, Store, ShieldCheck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -31,15 +31,28 @@ export default function MemberNavbar() {
 
     const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
+    const [userRole, setUserRole] = useState<string | null>(null);
+
     useEffect(() => {
         const getUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setUserData(session?.user || null);
+            if (session?.user) {
+                // Fetch user role for specialized dashboard links
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+                setUserRole(profile?.role || 'member');
+            }
         };
         getUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
             setUserData(session?.user || null);
+            if (session?.user) {
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+                setUserRole(profile?.role || 'member');
+            } else {
+                setUserRole(null);
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -90,6 +103,12 @@ export default function MemberNavbar() {
                         />
                     </div>
 
+                    {userData && (
+                        <Link href="/dashboard" className="hidden sm:flex w-9 h-9 rounded-full bg-zinc-100 items-center justify-center hover:bg-[#D4AF37]/10 transition-colors">
+                            <User className="w-4 h-4 text-zinc-600" />
+                        </Link>
+                    )}
+
                     {/* Cart Icon */}
                     <button
                         onClick={() => setIsCartOpen(true)}
@@ -102,6 +121,8 @@ export default function MemberNavbar() {
                             </span>
                         )}
                     </button>
+
+                    {userData && <NotificationBell />}
                 </div>
 
             </nav>
@@ -178,22 +199,54 @@ export default function MemberNavbar() {
 
                                 <div className="mt-8 pt-8 border-t border-neutral-100">
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-4 ml-3">
-                                        Account
+                                        Personal Hub
                                     </span>
 
                                     {userData ? (
-                                        <div className="space-y-2 mt-4">
+                                        <div className="space-y-3 mt-4">
+                                            {/* Standard User Dashboard */}
+                                            <Link
+                                                href="/dashboard"
+                                                onClick={() => setIsOpen(false)}
+                                                className="flex items-center gap-4 p-4 rounded-2xl hover:bg-neutral-50 transition-all border border-neutral-50"
+                                            >
+                                                <div className="w-10 h-10 bg-[#D4AF37]/10 rounded-full flex items-center justify-center text-[#D4AF37]">
+                                                    <LayoutDashboard size={18} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm text-zinc-900">My Dashboard</p>
+                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">History & Tracking</p>
+                                                </div>
+                                            </Link>
+
+                                            {/* Admin Hub - Special Highlight */}
+                                            {userRole === 'admin' && (
+                                                <Link
+                                                    href="/admin"
+                                                    onClick={() => setIsOpen(false)}
+                                                    className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-950 text-white transition-all shadow-xl shadow-black/10 border border-zinc-800"
+                                                >
+                                                    <div className="w-10 h-10 bg-[#D4AF37] rounded-full flex items-center justify-center text-white">
+                                                        <ShieldCheck size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-sm">Control Panel</p>
+                                                        <p className="text-[10px] text-[#D4AF37] uppercase tracking-widest font-black">Admin Management</p>
+                                                    </div>
+                                                </Link>
+                                            )}
+
                                             <Link
                                                 href="/profile"
                                                 onClick={() => setIsOpen(false)}
                                                 className="flex items-center gap-4 p-4 rounded-2xl hover:bg-neutral-50 transition-all"
                                             >
-                                                <div className="w-10 h-10 bg-[#3E2723] rounded-full flex items-center justify-center text-[#D4AF37]">
+                                                <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500">
                                                     <User size={18} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-sm text-zinc-900">Profile</p>
-                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Membership Settings</p>
+                                                    <p className="font-bold text-sm text-zinc-900">Profile Settings</p>
+                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Identity & Security</p>
                                                 </div>
                                             </Link>
 
@@ -202,9 +255,11 @@ export default function MemberNavbar() {
                                                     await supabase.auth.signOut();
                                                     window.location.href = '/';
                                                 }}
-                                                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-500 transition-all"
+                                                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-500 transition-all group"
                                             >
-                                                <LogOut size={18} />
+                                                <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center group-hover:bg-red-100">
+                                                    <LogOut size={18} />
+                                                </div>
                                                 <span className="font-bold text-sm">Sign Out</span>
                                             </button>
                                         </div>
@@ -216,8 +271,8 @@ export default function MemberNavbar() {
                                         >
                                             <User size={20} />
                                             <div className="text-left">
-                                                <p className="font-black text-[10px] uppercase tracking-widest text-[#D4AF37]">Join Experience</p>
-                                                <p className="text-[10px] text-zinc-400">Sign in to your dashboard</p>
+                                                <p className="font-black text-[10px] uppercase tracking-widest text-[#D4AF37]">Enter Club</p>
+                                                <p className="text-[10px] text-zinc-400">Unlock your dashboard</p>
                                             </div>
                                         </Link>
                                     )}
