@@ -16,8 +16,9 @@
         "clsx": "^2.1.1",
         "tailwind-merge": "^2.5.5",
         "framer-motion": "^11.15.0",
-        "@supabase/supabase-js": "^2.39.0",
-        "nextjs-toploader": "^3.7.15"
+        "nextjs-toploader": "^3.7.15",
+        "@supabase/supabase-js": "^2.49.1",
+        "@supabase/ssr": "^0.5.2"
     },
     "devDependencies": {
         "typescript": "^5.7.2",
