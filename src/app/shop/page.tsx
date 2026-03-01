@@ -166,7 +166,7 @@ export default function Shop() {
                     {/* Shop Header */}
                     <header className="mb-12 md:mb-24 text-center">
                         <div className="inline-flex items-center gap-2 text-[#D4AF37] font-black text-[10px] uppercase tracking-[0.4em] mb-6">
-                            <ShoppingBag className="w-3 h-3" /> Our Signature Collection
+                            <ShoppingBag className="w-3 h-3" /> Our Collection
                         </div>
                         <h1 className="text-4xl md:text-8xl font-serif font-black mb-8 md:mb-10 tracking-tighter text-zinc-900" style={{ fontFamily: 'var(--font-playfair), serif' }}>Wear Abbie <span className="italic font-light text-[#D4AF37]">Collections.</span></h1>
 

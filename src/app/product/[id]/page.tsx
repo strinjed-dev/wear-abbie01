@@ -109,7 +109,7 @@ export default function ProductDetailPage() {
                                 <span className="bg-[#D4AF37]/10 text-[#D4AF37] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">{product.category}</span>
                                 <div className="flex items-center gap-1 text-zinc-900">
                                     {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-current" />)}
-                                    <span className="text-[10px] font-bold text-zinc-400 ml-2 uppercase tracking-widest">Elite Verified</span>
+                                    <span className="text-[10px] font-bold text-zinc-400 ml-2 uppercase tracking-widest">Authentic Product</span>
                                 </div>
                             </div>
                             <h1 className="text-4xl md:text-7xl font-serif font-black mb-6 tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>{product.name}</h1>
@@ -122,7 +122,7 @@ export default function ProductDetailPage() {
                         <div className="p-8 bg-zinc-50 rounded-[40px] border border-zinc-100">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4">Olfactory Narrative</h3>
                             <p className="text-zinc-500 font-medium leading-relaxed text-lg italic">
-                                "{product.description || "A masterfully curated scent designed to leave a lasting impression. Experience the elite craftsmanship of Wear Abbie's signature olfactory collection."}"
+                                "{product.description || "A masterfully curated scent designed to leave a lasting impression. Experience the craftsmanship of Wear Abbie's collection."}"
                             </p>
                         </div>
 

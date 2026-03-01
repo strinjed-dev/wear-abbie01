@@ -18,7 +18,7 @@ const mainMenu: NavItem[] = [
     { label: "Home", href: "/" },
     { label: "Shop Scents", href: "/shop" },
     { label: "Track Order", href: "/tracking" },
-    { label: "Our Story", href: "/shop" },
+    { label: "Journal", href: "/journal" },
     { label: "Contact Us", href: "https://wa.me/2348132484859" },
 ];
 
@@ -175,7 +175,7 @@ export default function MemberNavbar() {
                             <div className="flex flex-col px-6 py-8 gap-2 overflow-y-auto no-scrollbar">
 
                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-4 ml-3">
-                                    Directory
+                                    Menu
                                 </span>
 
                                 {mainMenu.map((item, index) => (
@@ -199,7 +199,7 @@ export default function MemberNavbar() {
 
                                 <div className="mt-8 pt-8 border-t border-neutral-100">
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-4 ml-3">
-                                        Personal Hub
+                                        Your Account
                                     </span>
 
                                     {userData ? (
@@ -215,7 +215,7 @@ export default function MemberNavbar() {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-sm text-zinc-900">My Dashboard</p>
-                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">History & Tracking</p>
+                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Orders & Tracking</p>
                                                 </div>
                                             </Link>
 
@@ -231,7 +231,7 @@ export default function MemberNavbar() {
                                                     </div>
                                                     <div>
                                                         <p className="font-bold text-sm">Control Panel</p>
-                                                        <p className="text-[10px] text-[#D4AF37] uppercase tracking-widest font-black">Admin Management</p>
+                                                        <p className="text-[10px] text-[#D4AF37] uppercase tracking-widest font-black">Store Management</p>
                                                     </div>
                                                 </Link>
                                             )}
@@ -246,7 +246,7 @@ export default function MemberNavbar() {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-sm text-zinc-900">Profile Settings</p>
-                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Identity & Security</p>
+                                                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Account Details</p>
                                                 </div>
                                             </Link>
 
@@ -271,8 +271,8 @@ export default function MemberNavbar() {
                                         >
                                             <User size={20} />
                                             <div className="text-left">
-                                                <p className="font-black text-[10px] uppercase tracking-widest text-[#D4AF37]">Enter Club</p>
-                                                <p className="text-[10px] text-zinc-400">Unlock your dashboard</p>
+                                                <p className="font-black text-[10px] uppercase tracking-widest text-[#D4AF37]">Sign In</p>
+                                                <p className="text-[10px] text-zinc-400">Manage your orders</p>
                                             </div>
                                         </Link>
                                     )}
@@ -284,7 +284,7 @@ export default function MemberNavbar() {
                             <div className="mt-auto px-8 py-8 border-t border-neutral-50 bg-neutral-50/30">
 
                                 <p className="text-[9px] font-black uppercase tracking-[0.4em] text-neutral-300">
-                                    © {new Date().getFullYear()} Wear Abbie Signature
+                                    © {new Date().getFullYear()} Wear Abbie
                                 </p>
 
                                 <p className="text-[9px] font-bold text-neutral-300 mt-2 uppercase">

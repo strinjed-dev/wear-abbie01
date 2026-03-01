@@ -125,7 +125,7 @@ export default function AuthPage() {
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Wear Abbie Signature</span>
                     </div>
                     <h2 className="text-6xl md:text-7xl font-serif font-black text-white mb-8 tracking-tighter" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                        Your Elite <br />
+                        Your <br />
                         <span className="text-[#D4AF37] italic font-light text-5xl md:text-6xl">Scent Journey</span> <br />
                         Begins Here.
                     </h2>
@@ -162,7 +162,7 @@ export default function AuthPage() {
                     <div className="mb-12">
                         <img src="/logo.png" alt="Wear Abbie" className="h-10 mb-8 lg:hidden" />
                         <h3 className="text-4xl font-serif font-black mb-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                            {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Join the Elite' : 'Reset Password'}
+                            {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
                         </h3>
                         <p className="text-zinc-400 font-medium">
                             {mode === 'login' ? 'Enter your details to access your account' : mode === 'signup' ? 'Register to begin your signature scent collection' : 'Enter your registered email to receive a password reset link.'}
@@ -180,8 +180,8 @@ export default function AuthPage() {
                                 </h3>
                                 <p className="text-zinc-500 font-medium leading-relaxed px-4">
                                     {mode === 'forgot_password'
-                                        ? 'We have dispatched a cryptographic reset link to your scent registry email. Please follow the instructions to restore access.'
-                                        : 'Account created successfully. Your elite scent journey is being initialized. Redirecting to your personal vault...'}
+                                        ? 'We have sent a password reset link to your email. Please follow the instructions to restore access.'
+                                        : 'Account created successfully. Your profile is being set up. Redirecting to your dashboard...'}
                                 </p>
                             </div>
                             {mode === 'forgot_password' && (

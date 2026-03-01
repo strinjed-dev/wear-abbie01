@@ -18,10 +18,10 @@ export default function Footer() {
                 <div>
                     <h4 className="font-bold text-sm uppercase tracking-wider mb-6">Collections</h4>
                     <ul className="space-y-4 text-sm text-gray-500">
-                        <li><a href="/shop" className="hover:text-black transition-colors">Signature Series</a></li>
+                        <li><a href="/shop" className="hover:text-black transition-colors">Fragrances</a></li>
                         <li><a href="/shop" className="hover:text-black transition-colors">Smart Collection</a></li>
-                        <li><a href="/shop" className="hover:text-black transition-colors">Exclusive Boutique</a></li>
-                        <li><a href="/shop" className="hover:text-black transition-colors">Gift Essentials</a></li>
+                        <li><a href="/shop" className="hover:text-black transition-colors">Boutique</a></li>
+                        <li><a href="/shop" className="hover:text-black transition-colors">Gift Sets</a></li>
                     </ul>
                 </div>
                 <div>
@@ -34,7 +34,7 @@ export default function Footer() {
                     </ul>
                 </div>
                 <div>
-                    <h4 className="font-bold text-sm uppercase tracking-wider mb-6">The Elite Promise</h4>
+                    <h4 className="font-bold text-sm uppercase tracking-wider mb-6">Our Promise</h4>
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
                             <ShieldCheck className="w-5 h-5 text-[#D4AF37]" />
@@ -42,7 +42,7 @@ export default function Footer() {
                         </div>
                         <div className="flex items-center gap-3">
                             <Truck className="w-5 h-5 text-[#D4AF37]" />
-                            <span className="text-sm text-gray-500">Elite Delivery Network</span>
+                            <span className="text-sm text-gray-500">Reliable Delivery Network</span>
                         </div>
                         <div className="flex items-center gap-3">
                             <CreditCard className="w-5 h-5 text-[#D4AF37]" />
@@ -52,7 +52,7 @@ export default function Footer() {
                 </div>
             </div>
             <div className="container border-t border-gray-200 pt-8 text-center text-xs text-gray-400">
-                © 2026 Wear Abbie Signature. All rights reserved. Registered Trademark.
+                © 2026 Wear Abbie. All rights reserved.
             </div>
         </footer>
     );

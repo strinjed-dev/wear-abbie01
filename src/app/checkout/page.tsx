@@ -128,12 +128,12 @@ export default function CheckoutPage() {
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
                     <a href="/shop" className="flex items-center gap-3 text-zinc-400 hover:text-zinc-900 transition-colors group">
                         <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Resume Selection</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Back to Shop</span>
                     </a>
                     <img src="/logo.png" alt="Wear Abbie" className="h-8 md:h-10" />
                     <div className="flex items-center gap-3 text-emerald-500">
                         <ShieldCheck className="w-5 h-5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Secure Session</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Secure Checkout</span>
                     </div>
                 </div>
             </nav>
@@ -146,10 +146,10 @@ export default function CheckoutPage() {
                             <div className="flex items-center gap-4 mb-4">
                                 <span className="w-8 h-8 md:w-10 md:h-10 bg-[#3E2723] text-white rounded-full flex items-center justify-center font-black text-xs">0{step}</span>
                                 <h1 className="text-3xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                                    {step === 1 ? 'Dispatch Details' : 'Payment Method'}
+                                    {step === 1 ? 'Shipping Address' : 'Payment Method'}
                                 </h1>
                             </div>
-                            <p className="text-zinc-400 font-medium">Please provide your details for nationwide logistics delivery.</p>
+                            <p className="text-zinc-400 font-medium">Please provide your details for delivery.</p>
                         </header>
 
                         <form onSubmit={handleComplete} className="space-y-8 animate-in">

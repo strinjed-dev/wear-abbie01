@@ -27,7 +27,7 @@ export default function CartDrawer() {
                 <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                     <div>
                         <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight text-zinc-900 leading-none mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Your Bag</h2>
-                        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">{cart.length} Elite Selection(s)</p>
+                        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">{cart.length} Item(s)</p>
                     </div>
                     <button
                         onClick={() => setIsCartOpen(false)}
