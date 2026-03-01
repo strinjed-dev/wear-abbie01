@@ -14,7 +14,7 @@ interface CartContextType {
     updateQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
     orders: Order[];
-    placeOrder: (customerInfo: any) => Promise<{ tracking_code?: string; order_id?: string }>;
+    placeOrder: (customerInfo: any) => Promise<{ tracking_code?: string; order_id?: string; total?: number }>;
     isCartOpen: boolean;
     setIsCartOpen: (isOpen: boolean) => void;
     isInitialized: boolean;
