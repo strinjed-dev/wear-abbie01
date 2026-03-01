@@ -381,7 +381,7 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-12 md:mb-16">
                             <StatCard
                                 label="Catalog Value"
-                                value={`₦${products.reduce((acc, p) => acc + (parseFloat(p.price.toString()) * (parseInt(p.stock.toString()) || 0)), 0).toLocaleString()}`}
+                                value={`₦${products.reduce((acc: number, p: Product) => acc + (parseFloat(p.price.toString()) * (parseInt(p.stock.toString()) || 0)), 0).toLocaleString()}`}
                                 sub="Total Evaluated Stock"
                                 icon={<BarChart3 size={24} />}
                                 color="border-[#D4AF37]"
