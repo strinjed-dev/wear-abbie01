@@ -9,7 +9,7 @@ export type { Product, CartItem, Order, Notification };
 
 interface CartContextType {
     cart: CartItem[];
-    addToCart: (product: Omit<Product, 'inStock' | 'isCOD'> & { image_url?: string }) => void;
+    addToCart: (product: any) => void;
     removeFromCart: (productId: string) => void;
     updateQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
@@ -206,7 +206,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
     }, [cart, isInitialized]);
 
-    const addToCart = (product: Omit<Product, 'inStock' | 'isCOD'> & { image_url?: string }) => {
+    const addToCart = (product: any) => {
         // Normalize: support both 'image' and 'image_url' fields from DB
         const normalised: CartItem = {
             id: product.id,
