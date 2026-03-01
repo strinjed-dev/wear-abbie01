@@ -52,7 +52,7 @@ interface CartContextType {
     setIsCartOpen: (isOpen: boolean) => void;
     isInitialized: boolean;
     searchQuery: string;
-    setSearchQuery: (query: string) => void;
+    setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
     lastAddedItem: Product | null;
     clearLastAddedItem: () => void;
     notifications: Notification[];
