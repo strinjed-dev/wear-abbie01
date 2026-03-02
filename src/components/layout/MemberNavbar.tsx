@@ -82,11 +82,8 @@ export default function MemberNavbar() {
                 </button>
 
                 {/* LOGO: CENTERED */}
-                <Link href="/" className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
-                    <img src="/logo.png" alt="Wear Abbie" className="h-10 md:h-12 w-auto" />
-                    <span className="text-lg font-black tracking-tighter hidden sm:block">
-                        Wear<span className="text-[#D4AF37]">Abbie</span>
-                    </span>
+                <Link href="/" className="flex items-center absolute left-1/2 -translate-x-1/2">
+                    <img src="/logo.png" alt="Wear Abbie" className="h-12 md:h-16 w-auto transition-transform hover:scale-105" />
                 </Link>
 
                 {/* RIGHT: SEARCH & CART */}
@@ -153,14 +150,12 @@ export default function MemberNavbar() {
                             {/* HEADER */}
                             <div className="flex items-center justify-between px-6 h-[70px] border-b border-neutral-50">
 
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
-                                        WA
-                                    </div>
-                                    <span className="text-lg font-black tracking-tighter">
-                                        Wear<span className="text-[#D4AF37]">Abbie</span>
-                                    </span>
-                                </div>
+                                <button
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex items-center gap-3 group"
+                                >
+                                    <img src="/logo.png" alt="Wear Abbie" className="h-8 w-auto" />
+                                </button>
 
                                 <button
                                     onClick={() => setIsOpen(false)}
@@ -300,7 +295,8 @@ export default function MemberNavbar() {
             </AnimatePresence>
 
             {/* Spacer for fixed nav */}
-            <div className="h-[70px] w-full" />
+            {/* Spacer for fixed nav */}
+            <div className="h-[70px] md:h-[80px] w-full" />
         </>
     );
 }

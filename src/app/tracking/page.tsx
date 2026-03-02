@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, Search, Package, MapPin, Clock, ArrowRight, ShieldCheck, CheckCircle2, Circle } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import MemberNavbar from '@/components/layout/MemberNavbar';
 import { supabase } from '@/lib/supabase';
 
 const statusSteps = ['pending', 'confirmed', 'dispatched', 'in_transit', 'delivered'];
@@ -51,27 +52,45 @@ export default function TrackingPage() {
 
         const code = inputCode.trim().toUpperCase();
 
-        // Try to find by tracking_code first, then by partial ID
-        const { data, error: dbError } = await supabase
-            .from('orders')
-            .select('id, tracking_code, status, shipping_state, shipping_area, shipping_address, contact_phone, total_amount, created_at, updated_at, items, payment_method')
-            .or(`tracking_code.eq.${code},id.eq.${code}`)
-            .maybeSingle();
+        try {
+            // First try finding by tracking_code exactly
+            let { data, error: dbError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('tracking_code', code)
+                .maybeSingle();
 
-        setIsSearching(false);
-
-        if (dbError || !data) {
-            // Also check guest localStorage orders
-            const guest = guestOrders.find((o: any) => o.tracking_code?.toUpperCase() === code);
-            if (guest) {
-                setTrackData({ ...guest, isGuest: true });
-            } else {
-                setError("Order not found. Double-check your tracking code (format: WA-2026-XXXXXX) or contact support on WhatsApp.");
+            // If not found, try by ID if it looks like a UUID
+            if (!data && code.length > 20) {
+                const { data: byId } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('id', code)
+                    .maybeSingle();
+                data = byId;
             }
-            return;
-        }
 
-        setTrackData(data);
+            setIsSearching(false);
+
+            if (dbError) throw dbError;
+
+            if (!data) {
+                // Check guest localStorage orders
+                const guest = guestOrders.find((o: any) => o.tracking_code?.toUpperCase() === code);
+                if (guest) {
+                    setTrackData({ ...guest, isGuest: true });
+                } else {
+                    setError("Order not found. Please check your code or contact support on WhatsApp.");
+                }
+                return;
+            }
+
+            setTrackData(data);
+        } catch (err: any) {
+            console.error("Tracking Error:", err);
+            setIsSearching(false);
+            setError("Something went wrong while fetching your order. Please try again or contact support.");
+        }
     };
 
     const currentStepIndex = trackData ? statusSteps.indexOf(trackData.status) : -1;
@@ -87,17 +106,8 @@ export default function TrackingPage() {
                 .animate-in { animation: fade-in 0.6s ease-out forwards; }
             `}</style>
 
-            {/* Navbar */}
-            <nav className="border-b border-zinc-100 py-6 md:py-8 bg-white sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-                    <a href="/"><img src="/logo.png" alt="Wear Abbie" className="h-12 md:h-16" /></a>
-                    <div className="hidden lg:flex gap-12 text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                        <a href="/" className="hover:text-[#D4AF37] transition-colors">Home</a>
-                        <a href="/shop" className="hover:text-[#D4AF37] transition-colors">Shop Scents</a>
-                    </div>
-                    <a href="/auth" className="hover:text-[#D4AF37] transition-colors uppercase font-black tracking-[0.2em] text-[10px] bg-zinc-50 px-6 py-3 rounded-full border border-zinc-100">My Account</a>
-                </div>
-            </nav>
+            {/* Premium Navbar */}
+            <MemberNavbar />
 
             <main className="flex-grow flex flex-col lg:flex-row items-stretch min-h-[calc(100vh-120px)]">
                 {/* Left: Search */}
@@ -213,15 +223,30 @@ export default function TrackingPage() {
                                     <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Destination</p>
                                     <p className="font-bold text-sm">{trackData.shipping_area || trackData.shipping_state || 'Nigeria'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Order Date</p>
-                                    <p className="font-bold text-sm">{new Date(trackData.created_at || trackData.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1">Payment</p>
-                                    <p className="font-bold text-sm capitalize">{trackData.payment_method || 'Transfer'}</p>
-                                </div>
                             </div>
+
+                            {/* Tracked Items */}
+                            {trackData.items && Array.isArray(trackData.items) && trackData.items.length > 0 && (
+                                <div className="space-y-4">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Tracked Items</p>
+                                    <div className="space-y-2">
+                                        {trackData.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="flex items-center justify-between p-4 bg-white border border-zinc-100 rounded-2xl">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-zinc-50 rounded-lg flex items-center justify-center p-1">
+                                                        <img src={item.image || '/logo.png'} alt={item.name} className="max-w-full max-h-full object-contain" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-zinc-900">{item.name}</p>
+                                                        <p className="text-[10px] text-zinc-400 font-medium">Qty: {item.quantity}</p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm font-black text-zinc-900">₦{(item.price * item.quantity).toLocaleString()}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Progress Steps */}
                             {trackData.status !== 'cancelled' && (

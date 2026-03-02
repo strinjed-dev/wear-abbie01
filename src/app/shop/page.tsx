@@ -157,11 +157,8 @@ export default function Shop() {
             {/* Premium Unified Navbar */}
             <MemberNavbar />
 
-            {/* Spacer for fixed MemberNavbar or multi-row standard Nav */}
-            <div className="h-28 md:h-24 lg:h-24"></div>
-
-
-            <main className="flex-grow py-12 md:py-20 bg-white">
+            {/* Main Content */}
+            <main className="flex-grow py-6 md:py-20 bg-white">
                 <div className="container mx-auto px-4">
                     {/* Shop Header */}
                     <header className="mb-12 md:mb-24 text-center">

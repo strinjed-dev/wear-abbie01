@@ -119,7 +119,7 @@ export default function NotificationBell() {
                         onClick={() => setOpen(false)}
                         className="block w-full py-4 text-center border-t border-zinc-50 bg-zinc-50/20 text-[9px] font-black uppercase tracking-[0.2em] text-[#D4AF37] hover:bg-zinc-50 hover:text-black transition-all"
                     >
-                        View Registry Archive
+                        View All Notifications
                     </Link>
                 </div>
             )}

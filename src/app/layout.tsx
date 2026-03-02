@@ -20,8 +20,14 @@ import ToastNotification from "@/components/ui/ToastNotification";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
-    title: "Wear Abbie | Signature Fragrances",
-    description: "Smelling nice is our priority. Experience the curated collection of Wear Abbie.",
+    title: "Wear Abbie | Luxury Fragrances & Signature Scents",
+    description: "Discover Wear Abbie, Nigeria's premier destination for high-quality fragrances. Smelling nice is our priority with curated collections and nationwide delivery.",
+    keywords: ["perfumes", "fragrances", "Nigeria perfumes", "luxury scents", "Wear Abbie", "buy perfume online", "Lagos fragrances"],
+    openGraph: {
+        title: "Wear Abbie | Premium Fragrances",
+        description: "Nigeria's curated source for exceptional scents. Authentic quality guaranteed.",
+        images: ["/logo.png"],
+    },
     icons: {
         icon: "/logo.png",
         shortcut: "/logo.png",

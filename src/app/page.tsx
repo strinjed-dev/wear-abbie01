@@ -92,7 +92,7 @@ export default function Home() {
             </div>
 
             <MemberNavbar />
-            <div className="h-28 md:h-24 lg:h-24"></div>
+            <div className="h-4 md:h-8 lg:h-12"></div>
 
 
             <main className="flex-grow">
