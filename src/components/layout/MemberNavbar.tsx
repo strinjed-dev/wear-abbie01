@@ -56,7 +56,11 @@ export default function MemberNavbar() {
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
                 // Master admin recognition for provided emails
                 const masters = ['wearabbie@gmail.com', 'admin@wearabbie.com'];
-                const role = profile?.role || (masters.includes(session.user.email) ? 'admin' : 'member');
+
+                const email = session.user.email ?? "";
+
+                const role = profile?.role || (masters.includes(email) ? 'admin' : 'member');
+
                 setUserRole(role);
             } else {
                 setUserRole(null);
@@ -237,7 +241,7 @@ export default function MemberNavbar() {
                                                     setIsOpen(false);
                                                     return;
                                                 }
-                                                
+
                                                 e.preventDefault();
                                                 router.push(item.href);
                                                 setIsOpen(false);
