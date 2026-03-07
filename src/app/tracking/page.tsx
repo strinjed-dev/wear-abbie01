@@ -60,19 +60,18 @@ export default function TrackingPage() {
                 .eq('tracking_code', code)
                 .maybeSingle();
 
+            if (dbError) throw dbError;
+
             // If not found, try by ID if it looks like a UUID
             if (!data && code.length > 20) {
-                const { data: byId } = await supabase
+                const { data: byId, error: idError } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('id', code)
                     .maybeSingle();
+                if (idError) throw idError;
                 data = byId;
             }
-
-            setIsSearching(false);
-
-            if (dbError) throw dbError;
 
             if (!data) {
                 // Check guest localStorage orders
@@ -88,8 +87,9 @@ export default function TrackingPage() {
             setTrackData(data);
         } catch (err: any) {
             console.error("Tracking Error:", err);
-            setIsSearching(false);
             setError("Something went wrong while fetching your order. Please try again or contact support.");
+        } finally {
+            setIsSearching(false);
         }
     };
 

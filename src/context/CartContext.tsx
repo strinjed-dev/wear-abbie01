@@ -143,15 +143,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
                         setUserId(null);
                         localStorage.removeItem("wear_abbie_cart");
                     } else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-                        setUserId(session.user.id);
-                        const { data: profile } = await supabase
-                            .from('profiles')
-                            .select('cart')
-                            .eq('id', session.user.id)
-                            .maybeSingle();
-                        if (profile?.cart) setCart(profile.cart as CartItem[]);
-                        fetchOrders();
-                        fetchNotifications(session.user.id);
+                        const newUid = session.user.id;
+
+                        // Only reset everything if it's actually a different user
+                        if (newUid !== userId) {
+                            setUserId(newUid);
+                            const { data: profile } = await supabase
+                                .from('profiles')
+                                .select('cart')
+                                .eq('id', newUid)
+                                .maybeSingle();
+                            if (profile?.cart) setCart(profile.cart as CartItem[]);
+                            fetchOrders();
+                            fetchNotifications(newUid);
+                        } else if (event === 'SIGNED_IN') {
+                            // Even if ID is same, if it was an explicit sign in, refresh
+                            fetchOrders();
+                            fetchNotifications(newUid);
+                        }
                     }
                 });
 
@@ -207,6 +216,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }, [cart, isInitialized]);
 
     const addToCart = (product: any) => {
+        if (product.inStock === false || product.stock === 0) {
+            alert('This product is currently out of stock.');
+            return;
+        }
+
         // Normalize: support both 'image' and 'image_url' fields from DB
         const normalised: CartItem = {
             id: product.id,
@@ -243,7 +257,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const clearCart = () => setCart([]);
 
     const placeOrder = async (customerInfo: any): Promise<{ tracking_code?: string; order_id?: string; total?: number }> => {
-        const total = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0) + (customerInfo.shipping_fee || 0);
+        // Calculate total with safety checks
+        const subtotal = cart.reduce((sum: number, item: CartItem) => {
+            const price = Number(item.price) || 0;
+            const qty = Number(item.quantity) || 1;
+            return sum + (price * qty);
+        }, 0);
+        const shippingFee = Number(customerInfo.shipping_fee) || 0;
+        const total = subtotal + shippingFee;
+
+        // Guard: prevent zero-total orders
+        if (total <= 0 || cart.length === 0) {
+            throw new Error("Your cart is empty or the order total is invalid.");
+        }
+
+        // --- NEW: Stock Verification Guard ---
+        // Before creating order, double check stock for ALL items in cart
+        for (const item of cart) {
+            const { data: pData } = await supabase
+                .from('products')
+                .select('stock, name')
+                .eq('id', item.id)
+                .maybeSingle();
+
+            if (pData) {
+                const available = Number(pData.stock) || 0;
+                if (available < item.quantity) {
+                    throw new Error(`Insufficient stock for "${pData.name}". Available: ${available}, but you have ${item.quantity} in cart.`);
+                }
+            }
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
 
         // Generate dynamic tracking code
@@ -251,38 +295,58 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const rand = Math.floor(Math.random() * 900000 + 100000);
         const generatedTrackingCode = `WA-${year}-${rand}`;
 
-        // Prepare order data
-        const orderData = {
+        // Prepare order data — include BOTH possible column names for maximum compatibility
+        const orderData: Record<string, any> = {
             user_id: session?.user?.id || null,
             total_amount: total,
-            total: total, // For backward compatibility with older table schemas
+            total: total,
             tracking_code: generatedTrackingCode,
-            shipping_fee: customerInfo.shipping_fee || 0,
-            shipping_address: customerInfo.address,
-            shipping_state: customerInfo.state,
-            shipping_area: customerInfo.area,
-            contact_email: customerInfo.email,
-            contact_phone: customerInfo.phone,
+            shipping_fee: shippingFee,
+            shipping_address: customerInfo.address || '',
+            shipping_state: customerInfo.state || '',
+            shipping_area: customerInfo.area || '',
+            contact_email: customerInfo.email || '',
+            contact_phone: customerInfo.phone || '',
             payment_method: customerInfo.payment_method || 'palmpay',
             payment_status: 'pending',
             status: 'pending',
             items: cart,
         };
 
-        const { data: insertedOrder, error: insertError } = await supabase
+        // Try primary insert
+        let { data: insertedOrder, error: insertError } = await supabase
             .from('orders')
             .insert([orderData])
             .select('*')
             .maybeSingle();
 
+        // If insert failed due to unknown column, retry without the problematic field
+        if (insertError && insertError.message?.includes('column')) {
+            console.warn("Retrying order insert with alternative schema:", insertError.message);
+            // Remove whichever column is not recognized
+            const altData = { ...orderData };
+            if (insertError.message.includes('"total"')) {
+                delete altData.total;
+            } else if (insertError.message.includes('"total_amount"')) {
+                delete altData.total_amount;
+            }
+            const retryResult = await supabase
+                .from('orders')
+                .insert([altData])
+                .select('*')
+                .maybeSingle();
+            insertedOrder = retryResult.data;
+            insertError = retryResult.error;
+        }
+
         if (insertError) {
             console.error("Order insert error detailed:", JSON.stringify(insertError, null, 2));
-            throw new Error(`Order failed: ${insertError.message || 'Database error'}`);
+            throw new Error(`Order failed: ${insertError.message || 'Database error'}. Please contact support on WhatsApp: +234 813 248 4859`);
         }
 
         if (!insertedOrder) {
             console.error("No order returned after insert");
-            throw new Error("Order creation failed - no data returned");
+            throw new Error("Order creation failed - no data returned. Please contact support.");
         }
 
         const orderId = insertedOrder.id;

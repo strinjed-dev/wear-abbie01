@@ -26,10 +26,12 @@ export default function MemberNavbar() {
     const { cart, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
     const [isOpen, setIsOpen] = useState(false);
     const [userData, setUserData] = useState<any>(null);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [showSignOutToast, setShowSignOutToast] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
 
-    const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const cartCount = cart.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
 
     const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -45,11 +47,14 @@ export default function MemberNavbar() {
         };
         getUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
             setUserData(session?.user || null);
             if (session?.user) {
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-                setUserRole(profile?.role || 'member');
+                // Master admin recognition for provided emails
+                const masters = ['wearabbie@gmail.com', 'admin@wearabbie.com'];
+                const role = profile?.role || (masters.includes(session.user.email) ? 'admin' : 'member');
+                setUserRole(role);
             } else {
                 setUserRole(null);
             }
@@ -99,6 +104,13 @@ export default function MemberNavbar() {
                             className="bg-transparent border-none outline-none text-[11px] ml-2 w-24 lg:w-40 font-bold uppercase tracking-widest text-zinc-900"
                         />
                     </div>
+
+                    {userData && userRole === 'admin' && (
+                        <Link href="/admin" className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full bg-zinc-950 text-white hover:bg-[#D4AF37] transition-all group shadow-lg shadow-black/10" title="Store Manager">
+                            <ShieldCheck className="w-4 h-4 text-[#D4AF37] group-hover:text-white group-hover:scale-110 transition-all" />
+                            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest hidden xs:inline">Store Manager</span>
+                        </Link>
+                    )}
 
                     {userData && (
                         <Link href="/dashboard" className="hidden sm:flex w-9 h-9 rounded-full bg-zinc-100 items-center justify-center hover:bg-[#D4AF37]/10 transition-colors">
@@ -246,16 +258,31 @@ export default function MemberNavbar() {
                                             </Link>
 
                                             <button
+                                                disabled={isLoggingOut}
                                                 onClick={async () => {
-                                                    await supabase.auth.signOut();
-                                                    window.location.href = '/';
+                                                    setIsLoggingOut(true);
+                                                    try {
+                                                        await supabase.auth.signOut();
+                                                        localStorage.removeItem("wear_abbie_admin_authorized");
+                                                        setShowSignOutToast(true);
+                                                        setTimeout(() => {
+                                                            window.location.href = '/';
+                                                        }, 1500);
+                                                    } catch (error) {
+                                                        console.error("Logout failed:", error);
+                                                        setIsLoggingOut(false);
+                                                    }
                                                 }}
-                                                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-500 transition-all group"
+                                                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-red-50 text-red-500 transition-all group disabled:opacity-50"
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center group-hover:bg-red-100">
-                                                    <LogOut size={18} />
+                                                    {isLoggingOut ? (
+                                                        <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                                    ) : (
+                                                        <LogOut size={18} />
+                                                    )}
                                                 </div>
-                                                <span className="font-bold text-sm">Sign Out</span>
+                                                <span className="font-bold text-sm">{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>
                                             </button>
                                         </div>
                                     ) : (
@@ -292,6 +319,26 @@ export default function MemberNavbar() {
                     </>
                 )}
 
+            </AnimatePresence>
+
+            {/* Logout Interactive Toast */}
+            <AnimatePresence>
+                {showSignOutToast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-[#121212] border border-zinc-800 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4"
+                    >
+                        <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-black uppercase tracking-widest text-[#D4AF37]">Secure Session Ended</span>
+                            <span className="text-[10px] text-zinc-400 font-medium">Signing out successfully...</span>
+                        </div>
+                    </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Spacer for fixed nav */}

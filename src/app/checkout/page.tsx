@@ -6,6 +6,7 @@ import { ShoppingBag, ChevronLeft, CreditCard, Truck, ShieldCheck, ArrowRight, X
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/lib/supabase';
 import { deliveryPricing, getDeliveryCost } from '@/utils/deliveryPricing';
+import Script from 'next/script';
 
 export default function CheckoutPage() {
     const [step, setStep] = useState(1);
@@ -69,32 +70,31 @@ export default function CheckoutPage() {
                 payment_method: paymentMethod,
             });
 
-            // Save tracking code for order success page
+            // Save tracking code + payment method for order success page
             if (result?.tracking_code) {
                 sessionStorage.setItem('wear_abbie_last_order_id', result.tracking_code);
             }
+            sessionStorage.setItem('wear_abbie_payment_method', paymentMethod);
 
             if (paymentMethod === 'palmpay') {
-                // For PalmPay: open WhatsApp with payment confirmation message, then redirect
+                // For PalmPay: open WhatsApp with tracking code (NOT "payment success")
                 const grandTotal = total + logistics;
                 const waMsg = encodeURIComponent(
-                    `Hello Wear Abbie! I just placed an order and made payment.\n\n` +
-                    `*Order ID:* ${result?.tracking_code || result?.order_id}\n` +
-                    `*Amount Paid:* ₦${grandTotal.toLocaleString()}\n` +
-                    `*Payment method:* PalmPay transfer to 8132484859\n\n` +
-                    `Please find my payment screenshot attached.`
+                    `Hello Wear Abbie! I just placed an order.\n\n` +
+                    `*Tracking Code:* ${result?.tracking_code || result?.order_id}\n` +
+                    `*Amount to Transfer:* ₦${grandTotal.toLocaleString()}\n` +
+                    `*PalmPay Account:* 8132484859 (Titilope Tijani)\n\n` +
+                    `I will send my payment screenshot shortly.`
                 );
 
                 const waUrl = `https://wa.me/2348132484859?text=${waMsg}`;
-
-                // Open WhatsApp
                 window.open(waUrl, '_blank');
 
-                // Redirect to success page after a delay to ensure WhatsApp starts
+                // Redirect to pending page (NOT success)
                 setTimeout(() => {
                     setIsLoading(false);
                     window.location.href = '/order-success';
-                }, 3000);
+                }, 2000);
             } else if (paymentMethod === 'paystack') {
                 initiatePaystack({
                     email: customer.email,
@@ -117,6 +117,7 @@ export default function CheckoutPage() {
 
     return (
         <div className="min-h-screen bg-white text-zinc-900 overflow-x-hidden">
+            <Script src="https://js.paystack.co/v1/inline.js" strategy="beforeInteractive" />
             <style jsx global>{`
                 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=Playfair+Display:ital,wght@0,700;0,900;1,400&display=swap');
                 :root { --font-outfit: 'Outfit', sans-serif; --font-playfair: 'Playfair Display', serif; }
@@ -227,71 +228,71 @@ export default function CheckoutPage() {
                                     <div className="grid grid-cols-1 gap-4">
                                         <div
                                             onClick={() => setPaymentMethod('paystack')}
-                                            className={`border-2 p-6 rounded-[30px] flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.02] ${paymentMethod === 'paystack' ? 'border-[#D4AF37] bg-[#D4AF37]/5 shadow-xl shadow-[#D4AF37]/10' : 'border-zinc-100 bg-white'}`}
+                                            className={`border-2 p-5 rounded-[30px] flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.01] ${paymentMethod === 'paystack' ? 'border-[#0BA4DB] bg-[#0BA4DB]/5 shadow-xl shadow-[#0BA4DB]/10' : 'border-zinc-100 bg-white'}`}
                                         >
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-100">
-                                                    <CreditCard className={`w-6 h-6 ${paymentMethod === 'paystack' ? 'text-[#D4AF37]' : 'text-zinc-300'}`} />
+                                            <div className="flex items-center gap-4 w-full">
+                                                <div className="w-12 h-12 flex-shrink-0 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-100">
+                                                    <CreditCard className={`w-6 h-6 ${paymentMethod === 'paystack' ? 'text-[#0BA4DB]' : 'text-zinc-300'}`} />
                                                 </div>
-                                                <div>
-                                                    <h4 className={`font-black text-xs uppercase tracking-widest ${paymentMethod === 'paystack' ? 'text-[#D4AF37]' : 'text-zinc-400'}`}>Secure Card Payment</h4>
-                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">Handled by Paystack Gateway</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className={`font-black text-xs uppercase tracking-widest truncate ${paymentMethod === 'paystack' ? 'text-zinc-900' : 'text-zinc-400'}`}>Instant Card Pay</h4>
+                                                    <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic truncate">Handled via Paystack</p>
                                                 </div>
-                                            </div>
-                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'paystack' ? 'border-[#D4AF37]' : 'border-zinc-200'}`}>
-                                                {paymentMethod === 'paystack' && <div className="w-3 h-3 bg-[#D4AF37] rounded-full"></div>}
+                                                <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === 'paystack' ? 'border-[#0BA4DB]' : 'border-zinc-200'}`}>
+                                                    {paymentMethod === 'paystack' && <div className="w-3 h-3 bg-[#0BA4DB] rounded-full"></div>}
+                                                </div>
                                             </div>
                                         </div>
 
                                         <div
                                             onClick={() => setPaymentMethod('palmpay')}
-                                            className={`border-2 p-6 rounded-[30px] flex flex-col items-start justify-between group cursor-pointer transition-all hover:scale-[1.02] ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9] bg-[#6F3AF9]/5 shadow-xl shadow-[#6F3AF9]/10' : 'border-zinc-100 bg-white'}`}
+                                            className={`border-2 p-5 rounded-[30px] flex flex-col items-start justify-between group cursor-pointer transition-all hover:scale-[1.01] ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9] bg-[#6F3AF9]/5 shadow-xl shadow-[#6F3AF9]/10' : 'border-zinc-100 bg-white'}`}
                                         >
-                                            <div className="flex items-center gap-6 w-full mb-4">
-                                                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl p-3 overflow-hidden border-2 border-[#6F3AF9]/20 group-hover:scale-105 transition-transform">
+                                            <div className="flex items-center gap-4 w-full mb-4">
+                                                <div className="w-12 h-12 flex-shrink-0 bg-white rounded-2xl flex items-center justify-center shadow-sm p-1.5 border border-[#6F3AF9]/10 overflow-hidden">
                                                     <img src="/palmpay.webp" alt="PalmPay" className="w-full h-full object-contain" />
                                                 </div>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className={`font-black text-xs uppercase tracking-widest ${paymentMethod === 'palmpay' ? 'text-[#6F3AF9]' : 'text-zinc-400'}`}>Direct PalmPay Transfer</h4>
-                                                        <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest">VERIFIED</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className={`font-black text-xs uppercase tracking-widest truncate ${paymentMethod === 'palmpay' ? 'text-[#6F3AF9]' : 'text-zinc-400'}`}>PalmPay Transfer</h4>
+                                                        <span className="text-[7px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">VERIFIED</span>
                                                     </div>
-                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">Fast & Reliable for Guests</p>
+                                                    <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest italic truncate">Manual Verification Required</p>
                                                 </div>
-                                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9]' : 'border-zinc-200'}`}>
+                                                <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === 'palmpay' ? 'border-[#6F3AF9]' : 'border-zinc-200'}`}>
                                                     {paymentMethod === 'palmpay' && <div className="w-3 h-3 bg-[#6F3AF9] rounded-full"></div>}
                                                 </div>
                                             </div>
 
                                             {paymentMethod === 'palmpay' && (
-                                                <div className="w-full bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-[#6F3AF9]/20 shadow-inner space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
+                                                <div className="w-full bg-white/80 backdrop-blur-sm p-6 rounded-3xl border border-[#6F3AF9]/20 shadow-inner space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
                                                     <div className="flex justify-between items-center text-[10px]">
                                                         <span className="font-black text-zinc-400 uppercase tracking-widest">Bank</span>
                                                         <span className="font-black text-[#6F3AF9]">PALMPAY</span>
                                                     </div>
                                                     <div className="flex justify-between items-center">
-                                                        <span className="font-black text-zinc-400 uppercase tracking-widest text-[9px]">Account Number</span>
+                                                        <span className="font-black text-zinc-400 uppercase tracking-widest text-[10px]">Account Number</span>
                                                         <span className="font-black text-2xl text-zinc-900 tracking-[0.2em]">8132484859</span>
                                                     </div>
-                                                    <div className="flex justify-between items-center text-[9px]">
+                                                    <div className="flex justify-between items-center text-[10px]">
                                                         <span className="font-black text-zinc-400 uppercase tracking-widest">Account Name</span>
-                                                        <span className="font-black text-zinc-950 uppercase text-[10px]">Titilope Tijani</span>
+                                                        <span className="font-black text-zinc-950 uppercase">Titilope Tijani</span>
                                                     </div>
-                                                    <div className="pt-2 border-t border-zinc-100">
-                                                        <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-[0.1em] text-center">Transfer exact total & stay on this page for verification</p>
+                                                    <div className="pt-3 border-t border-zinc-100">
+                                                        <p className="text-[9px] font-bold text-[#6F3AF9] uppercase tracking-[0.1em] text-center">Open WhatsApp to send screenshot after transfer</p>
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
 
                                         <div className="border border-zinc-100 p-6 rounded-[30px] flex items-center justify-between hover:border-zinc-200 transition-all cursor-pointer opacity-50 grayscale pointer-events-none mt-2">
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center">
-                                                    <Truck className="w-6 h-6 text-zinc-300" />
+                                            <div className="flex items-center gap-3 md:gap-6 w-full">
+                                                <div className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 bg-zinc-50 rounded-xl md:rounded-2xl flex items-center justify-center">
+                                                    <Truck className="w-5 h-5 md:w-6 md:h-6 text-zinc-300" />
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-black text-xs uppercase tracking-widest text-zinc-300">Cash on Delivery</h4>
-                                                    <p className="text-[10px] text-zinc-300 font-bold uppercase tracking-widest mt-1">Select regions only</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-black text-[10px] md:text-xs uppercase tracking-widest text-zinc-300 truncate">Cash on Delivery</h4>
+                                                    <p className="text-[8px] md:text-[10px] text-zinc-300 font-bold uppercase tracking-widest mt-0.5 md:mt-1 truncate">Select regions only</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -305,25 +306,25 @@ export default function CheckoutPage() {
                                         <p className="text-zinc-500 text-xs font-medium leading-relaxed">By completing this order, you authorize Wear Abbie to process your data for logistics fulfillment. All transactions are encrypted.</p>
                                     </div>
 
-                                    <div className="flex gap-4">
-                                        <button type="button" onClick={() => setStep(1)} className="flex-[1] bg-white border border-zinc-100 py-6 rounded-full font-black uppercase tracking-widest text-[11px] hover:bg-zinc-50 transition-all">Back</button>
+                                    <div className="flex gap-2 sm:gap-4">
+                                        <button type="button" onClick={() => setStep(1)} className="flex-[1] bg-white border border-zinc-100 py-4 sm:py-6 rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-zinc-50 transition-all">Back</button>
                                         <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="flex-[2] py-6 rounded-full font-black uppercase tracking-widest text-[11px] shadow-2xl transition-all flex items-center justify-center gap-4 relative overflow-hidden"
+                                            className="flex-[2] py-4 sm:py-6 rounded-full font-black uppercase tracking-widest text-[9px] sm:text-[11px] shadow-2xl transition-all flex items-center justify-center gap-2 sm:gap-4 relative overflow-hidden"
                                             style={{
                                                 background: paymentMethod === 'paystack' ? '#0BA4DB' : '#6F3AF9',
                                                 color: 'white',
                                                 boxShadow: paymentMethod === 'paystack' ? '0 20px 40px -10px rgba(11,164,219,0.3)' : '0 20px 40px -10px rgba(111,58,249,0.3)',
                                             }}
                                         >
-                                            <span className={isLoading ? 'opacity-0' : 'flex items-center gap-3'}>
+                                            <span className={isLoading ? 'opacity-0' : 'flex items-center gap-2 sm:gap-3'}>
                                                 {paymentMethod === 'paystack' ? (
-                                                    <>Continue to Paystack <CreditCard className="w-4 h-4" /></>
+                                                    <>Pay via Paystack <CreditCard className="w-4 h-4" /></>
                                                 ) : (
                                                     <>
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12 0C5.373 0 0 5.373 0 12c0 2.135.563 4.13 1.54 5.858L0 24l6.335-1.54A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.803 9.803 0 01-5.147-1.46l-.369-.219-3.76.914.945-3.668-.242-.381A9.797 9.797 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.421 0 9.818 4.396 9.818 9.818S17.421 21.818 12 21.818z" /></svg>
-                                                        Confirm Payment via WhatsApp
+                                                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12 0C5.373 0 0 5.373 0 12c0 2.135.563 4.13 1.54 5.858L0 24l6.335-1.54A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.803 9.803 0 01-5.147-1.46l-.369-.219-3.76.914.945-3.668-.242-.381A9.797 9.797 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.421 0 9.818 4.396 9.818 9.818S17.421 21.818 12 21.818z" /></svg>
+                                                        <span className="truncate">Place Order</span>
                                                     </>
                                                 )}
                                             </span>
@@ -376,16 +377,16 @@ export default function CheckoutPage() {
                             </div>
 
                             <div className="space-y-4 pt-8 border-t border-zinc-200">
-                                <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-zinc-400">
                                     <span>Subtotal</span>
-                                    <span className="text-zinc-900">₦{total.toLocaleString()}</span>
+                                    <span className="text-zinc-900 text-base">₦{total.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-zinc-400">
-                                    <span>Logistics ({customer.area || customer.state})</span>
-                                    <span className="text-zinc-900">₦{cart.length > 0 ? logistics.toLocaleString() : "0"}</span>
+                                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                                    <span className="truncate pr-2">Logistics ({customer.area || customer.state})</span>
+                                    <span className="text-zinc-900 text-base whitespace-nowrap">₦{cart.length > 0 ? logistics.toLocaleString() : "0"}</span>
                                 </div>
-                                <div className="flex justify-between text-xl font-black pt-6 border-t border-zinc-200">
-                                    <span>Total Due</span>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xl md:text-2xl font-black pt-6 border-t border-zinc-200 gap-2">
+                                    <span className="text-sm md:text-xl">Total Due</span>
                                     <span className="text-[#D4AF37]">₦{cart.length > 0 ? (total + logistics).toLocaleString() : "0"}</span>
                                 </div>
                             </div>

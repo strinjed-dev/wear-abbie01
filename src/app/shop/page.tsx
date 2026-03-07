@@ -15,6 +15,8 @@ export default function Shop() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -74,7 +76,7 @@ export default function Shop() {
                     setProducts((current: Product[]) =>
                         current.map((p: Product) => p.id === payload.new.id ? {
                             ...p,
-                            inStock: payload.new.in_stock ?? payload.new.inStock,
+                            inStock: payload.new.stock > 0,
                             price: payload.new.price
                         } : p)
                     );
@@ -103,6 +105,13 @@ export default function Shop() {
 
         return matchesCategory && (nameMatch || catMatch || descMatch);
     });
+
+    const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [currentPage]);
 
     return (
         <div className="min-h-screen flex flex-col bg-white text-zinc-900 overflow-x-hidden">
@@ -158,7 +167,7 @@ export default function Shop() {
             <MemberNavbar />
 
             {/* Main Content */}
-            <main className="flex-grow py-6 md:py-20 bg-white">
+            <main className="flex-grow py-2 md:py-20 bg-white">
                 <div className="container mx-auto px-4">
                     {/* Shop Header */}
                     <header className="mb-12 md:mb-24 text-center">
@@ -205,16 +214,16 @@ export default function Shop() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-                            {filtered.map((p: Product) => (
+                            {paginated.map((p: Product) => (
                                 <a href={`/product/${p.id}`} key={p.id} className="bg-white rounded-[24px] md:rounded-[32px] p-3 md:p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.15)] transition-all duration-500 group relative flex flex-col h-full cursor-pointer">
-                                    <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
-                                        <img src={p.image} alt={p.name} className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700" />
+                                    <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden group/image">
+                                        <img src={p.image} alt={p.name} className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${!p.inStock ? 'opacity-50 grayscale' : ''}`} />
                                         {p.isCOD && (
-                                            <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 backdrop-blur-sm text-[7px] md:text-[8px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-zinc-100 text-zinc-500">COD</span>
+                                            <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 backdrop-blur-sm text-[7px] md:text-[8px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-zinc-100 text-zinc-500 z-10">COD</span>
                                         )}
                                         {!p.inStock && (
-                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                                                <span className="text-[8px] md:text-[10px] tracking-widest uppercase font-black text-red-500 border border-red-500 px-3 py-1.5 rounded-full transform -rotate-12">Sold Out</span>
+                                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-20">
+                                                <span className="text-[9px] md:text-[11px] tracking-widest uppercase font-black text-white bg-red-600 px-4 py-2 rounded-full transform shadow-2xl backdrop-blur-md border border-red-400">Sold Out</span>
                                             </div>
                                         )}
                                     </div>
@@ -224,7 +233,7 @@ export default function Shop() {
                                         <div className="mt-auto pt-2 md:pt-4 flex items-center justify-between">
                                             <div>
                                                 <p className="text-[7px] md:text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Price</p>
-                                                <p className="text-sm md:text-xl font-black">₦{p.price.toLocaleString()}</p>
+                                                <p className={`text-sm md:text-xl font-black ${!p.inStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{p.price.toLocaleString()}</p>
                                             </div>
                                             <button
                                                 disabled={!p.inStock}
@@ -237,6 +246,32 @@ export default function Shop() {
                                     </div>
                                 </a>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="mt-16 flex items-center justify-center gap-4">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="w-12 h-12 rounded-full border border-zinc-100 flex items-center justify-center hover:bg-zinc-50 disabled:opacity-30 disabled:hover:bg-white"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Page</span>
+                                <span className="text-sm font-black text-zinc-900">{currentPage}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">of</span>
+                                <span className="text-sm font-black text-zinc-900">{totalPages}</span>
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="w-12 h-12 rounded-full border border-zinc-100 flex items-center justify-center hover:bg-zinc-50 disabled:opacity-30 disabled:hover:bg-white"
+                            >
+                                <ArrowRight className="w-5 h-5" />
+                            </button>
                         </div>
                     )}
 

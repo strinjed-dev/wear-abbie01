@@ -9,6 +9,7 @@ import MotionGraphics from '@/components/MotionGraphics';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import MemberNavbar from '@/components/layout/MemberNavbar';
 
 
@@ -17,26 +18,73 @@ export default function Home() {
     const { cart, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
     const [isImageExpanded, setIsImageExpanded] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const router = useRouter();
 
     useEffect(() => {
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            setIsLoggedIn(!!session);
+            if (session) {
+                router.push('/dashboard');
+            } else {
+                setIsLoggedIn(false);
+            }
         };
         checkUser();
+
+        const fetchProducts = async () => {
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .eq('is_active', true)
+                .limit(8);
+
+            if (!error && data) {
+                const mappedProducts: Product[] = data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    category: p.category,
+                    image: p.image_url || p.image || '/logo.png',
+                    inStock: p.stock > 0,
+                    isCOD: p.is_cod,
+                    description: p.description
+                }));
+                setProducts(mappedProducts);
+            } else {
+                setProducts((productsData as Product[]).slice(0, 8).map(p => ({ ...p, inStock: p.inStock ?? true })));
+            }
+            setLoading(false);
+        };
+        fetchProducts();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
             setIsLoggedIn(!!session);
         });
 
-        return () => subscription.unsubscribe();
+        const channel = supabase
+            .channel('homepage-products')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' }, (payload: any) => {
+                setProducts((current: Product[]) =>
+                    current.map((p: Product) => p.id === payload.new.id ? {
+                        ...p,
+                        inStock: payload.new.stock > 0,
+                        price: payload.new.price
+                    } : p)
+                );
+            })
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+            supabase.removeChannel(channel);
+        };
     }, []);
 
-
-    // Featured products from data
-    const featuredProducts = (productsData as Product[]).slice(0, 4);
-
-    // Cart logic handled by CartContext
+    // Featured products
+    const featuredProducts = products.length > 0 ? products.slice(0, 4) : (productsData as Product[]).slice(0, 4).map(p => ({ ...p, inStock: p.inStock ?? true }));
 
     const cartCount = cart.reduce((acc: number, item: CartItem) => acc + item.quantity, 0);
     const cartTotal = cart.reduce((acc: number, item: CartItem) => acc + (item.price * item.quantity), 0);
@@ -92,17 +140,17 @@ export default function Home() {
             </div>
 
             <MemberNavbar />
-            <div className="h-4 md:h-8 lg:h-12"></div>
+            <div className="h-1 md:h-8 lg:h-12"></div>
 
 
             <main className="flex-grow">
                 {/* Hero Section */}
-                <section className="container mx-auto px-4 py-12 md:py-24 lg:py-32">
+                <section className="container mx-auto px-4 py-4 md:py-24 lg:py-32">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
                         <div className="text-center lg:text-left order-2 lg:order-1">
                             <div className="inline-flex items-center gap-3 bg-zinc-50 border border-zinc-100 rounded-full px-6 py-2 mb-8">
                                 <Package className="w-4 h-4 text-[#D4AF37]" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Authentic Fragrances</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Wear Abbie Boutique</span>
                             </div>
                             <h1 className="text-4xl md:text-7xl lg:text-[7rem] font-serif font-black leading-[1.1] lg:leading-[0.95] mb-6 md:mb-8 tracking-tighter text-zinc-900" style={{ fontFamily: 'var(--font-playfair), serif' }}>
                                 Smelling nice <br />
@@ -145,7 +193,7 @@ export default function Home() {
                                 {/* The Bottle Image */}
                                 <Image
                                     src="/hero-bottle.png"
-                                    alt="Wear Abbie Signature Bottle"
+                                    alt="Wear Abbie Perfume Bottle"
                                     fill
                                     className="object-contain drop-shadow-2xl z-10"
                                     priority
@@ -175,7 +223,7 @@ export default function Home() {
                                         <div className="h-px w-6 md:w-8 bg-[#D4AF37]"></div>
                                         <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] drop-shadow-sm text-white">The Collection</span>
                                     </div>
-                                    <h3 className="text-lg md:text-3xl font-serif font-black text-white drop-shadow-md" style={{ fontFamily: 'var(--font-playfair), serif' }}>Wear Abbie <span className="italic font-light">Signature</span></h3>
+                                    <h3 className="text-lg md:text-3xl font-serif font-black text-white drop-shadow-md" style={{ fontFamily: 'var(--font-playfair), serif' }}>Wear Abbie <span className="italic font-light">Custom</span></h3>
                                 </div>
                             </motion.div>
                         </div>
@@ -199,10 +247,15 @@ export default function Home() {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
                             {featuredProducts.map(p => (
                                 <a href={`/product/${p.id}`} key={p.id} className="bg-white rounded-[24px] md:rounded-[32px] p-3 md:p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.15)] transition-all duration-500 group relative flex flex-col h-full cursor-pointer">
-                                    <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
-                                        <img src={p.image} alt={p.name} className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700" />
+                                    <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden group/image">
+                                        <img src={p.image} alt={p.name} className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${!p.inStock ? 'opacity-50 grayscale' : ''}`} />
                                         {p.isCOD && (
-                                            <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 backdrop-blur-sm text-[7px] md:text-[8px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-zinc-100 text-zinc-500">COD</span>
+                                            <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 backdrop-blur-sm text-[7px] md:text-[8px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-zinc-100 text-zinc-500 z-10">COD</span>
+                                        )}
+                                        {!p.inStock && (
+                                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-20">
+                                                <span className="text-[9px] md:text-[11px] tracking-widest uppercase font-black text-white bg-red-600 px-4 py-2 rounded-full transform shadow-2xl backdrop-blur-md border border-red-400">Sold Out</span>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="space-y-1 md:space-y-2 flex flex-col flex-grow">
@@ -211,11 +264,12 @@ export default function Home() {
                                         <div className="flex items-center justify-between pt-2 md:pt-4 mt-auto">
                                             <div>
                                                 <p className="text-[7px] md:text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Price</p>
-                                                <p className="text-sm md:text-xl font-black">₦{p.price.toLocaleString()}</p>
+                                                <p className={`text-sm md:text-xl font-black ${!p.inStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{p.price.toLocaleString()}</p>
                                             </div>
                                             <button
+                                                disabled={!p.inStock}
                                                 onClick={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); addToCart(p); }}
-                                                className="w-8 h-8 md:w-12 md:h-12 bg-[#D4AF37] text-white rounded-full flex items-center justify-center hover:bg-[#3E2723] transition-colors shadow-lg shadow-[#D4AF37]/20"
+                                                className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${p.inStock ? "bg-[#D4AF37] text-white hover:bg-[#3E2723] shadow-[#D4AF37]/20" : "bg-zinc-100 text-zinc-300 cursor-not-allowed shadow-none"}`}
                                             >
                                                 <ShoppingBag className="w-3.5 h-3.5 md:w-5 md:h-5" />
                                             </button>
@@ -296,7 +350,7 @@ export default function Home() {
                     </div>
                 </div>
                 <div className="container mx-auto px-4 mt-16 pt-8 border-t border-zinc-50 flex flex-col md:flex-row items-center justify-between text-zinc-500 font-medium">
-                    <p>&copy; 2026 Wear Abbie Signature. All rights reserved.</p>
+                    <p>&copy; 2026 Wear Abbie. All rights reserved.</p>
                     <div className="flex gap-6 mt-4 md:mt-0">
                         <a href="#" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</a>
                         <a href="#" className="hover:text-[#D4AF37] transition-colors">Terms of Service</a>

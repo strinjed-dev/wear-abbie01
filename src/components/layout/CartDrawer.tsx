@@ -5,10 +5,13 @@ import { X, Trash2, ShieldCheck, LockIcon, Minus, Plus, ShoppingBag, ArrowRight 
 import { useCart, CartItem, Product } from '@/context/CartContext';
 import Link from 'next/link';
 
+import { usePathname } from 'next/navigation';
+
 export default function CartDrawer() {
     const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity } = useCart();
+    const pathname = usePathname();
 
-    if (!isCartOpen) return null;
+    if (!isCartOpen || pathname?.startsWith('/admin')) return null;
 
     const cartTotal = cart.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
 

@@ -36,10 +36,13 @@ export interface Order {
         email: string;
     };
     tracking_code?: string;
+    contact_email?: string;
+    contact_phone?: string;
     payment_method?: string;
     payment_status?: string;
     rider_id?: string;
     current_location?: string;
+    stock_deducted?: boolean;
     date?: string;
     created_at?: string;
 }

@@ -1,393 +1,186 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useCart } from '@/context/CartContext';
+import { ShoppingBag, ChevronLeft, Search, User, Sparkles } from 'lucide-react';
+import { useCart, Product, CartItem } from '@/context/CartContext';
 import { supabase } from '@/lib/supabase';
-import { Package, User, LogOut, ShoppingBag, Truck, HeadphonesIcon, Gift, Store, ShieldCheck } from 'lucide-react';
+import MemberNavbar from '@/components/layout/MemberNavbar';
+import productsData from '@/data/products.json';
 import Link from 'next/link';
 
-import MemberNavbar from '@/components/layout/MemberNavbar';
-
-
-export default function UserDashboard() {
-    const { orders } = useCart();
-    const [activeTab, setActiveTab] = useState('purchases');
-
-    // User Data
+export default function UserShoppingDashboard() {
+    const { cart, addToCart } = useCart();
     const [userData, setUserData] = useState<any>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // Calculate stats
-    const totalSpent = (orders || []).reduce((sum: number, order: any) => sum + (order.total || 0), 0);
-    const activeOrders = (orders || []).filter((o: any) => o.status?.toLowerCase() === 'pending' || o.status?.toLowerCase() === 'processing').length;
+    const [activeCategory, setActiveCategory] = useState("All");
 
     useEffect(() => {
-        const fetchSupabaseIdentity = async () => {
-            try {
-                const { data: { session }, error } = await supabase.auth.getSession();
-                if (error || !session) {
-                    window.location.href = '/auth'; // Redirect unauthenticated users
-                    return;
-                }
+        const fetchDashboardData = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
                 setUserData(session.user);
-
-                // Fetch user role
-                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-                if (profile && profile.role === 'admin') {
-                    setIsAdmin(true);
-                }
-
-                // --- Real-time Order Synchronization ---
-                const channel = supabase
-                    .channel('schema-db-changes')
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: '*',
-                            schema: 'public',
-                            table: 'orders',
-                            filter: `user_id=eq.${session.user.id}`
-                        },
-                        (payload: any) => {
-                            window.dispatchEvent(new Event("wear_abbie_orders_updated"));
-                        }
-                    )
-                    .subscribe();
-
-                return () => {
-                    supabase.removeChannel(channel);
-                };
-            } catch (err) {
-                console.error("Auth context error:", err);
-            } finally {
-                setLoading(false);
             }
+
+            const { data, error } = await supabase.from('products').select('*');
+            if (!error && data) {
+                const mappedProducts: Product[] = data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                    category: p.category,
+                    image: p.image_url || p.image || '/logo.png',
+                    inStock: p.stock > 0,
+                    isCOD: p.is_cod,
+                    description: p.description
+                }));
+                setProducts(mappedProducts);
+            } else {
+                setProducts(productsData as Product[]);
+            }
+            setLoading(false);
         };
-        fetchSupabaseIdentity();
+
+        fetchDashboardData();
     }, []);
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        window.location.href = '/';
-    };
+    // Combine database categories and explicitly requested 'Roll-on'
+    const dynamicCategories = Array.from(new Set(products.map((p: Product) => p.category)));
+    const categories = ["All", ...new Set([...dynamicCategories, "Roll-on", "Fragrance", "Oil"])];
 
-    const handleSecretBootstrap = async () => {
-        const key = window.prompt("Enter Authorization Key (Cancel if unknown):");
-        if (key && userData?.id) {
-            const { data, error } = await supabase.rpc('set_admin_role_bootstrap', {
-                user_uuid: userData.id,
-                secret_bootstrap_key: key
-            });
-
-            if (!error && data) {
-                alert("Authorization Successful. You now have administrative access.");
-                setIsAdmin(true);
-            } else {
-                alert("Authorization Failed.");
-            }
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="w-12 h-12 border-4 border-zinc-100 border-t-[#D4AF37] rounded-full animate-spin"></div>
-            </div>
-        );
-    }
+    const filteredProducts = activeCategory === "All" 
+        ? products 
+        : products.filter((p: Product) => p.category === activeCategory);
 
     return (
-        <div className="min-h-screen bg-[#fafafa] pb-20">
+        <div className="min-h-screen bg-[#fafafa] pb-20 overflow-x-hidden">
             <style jsx global>{`
                 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
-                
                 body { font-family: 'Outfit', sans-serif; }
                 .font-serif { font-family: 'Playfair Display', serif; }
-                
-                .glass-card {
-                    background: white;
-                    border: 1px solid rgba(0, 0, 0, 0.04);
-                    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
-                    border-radius: 32px;
-                }
-                .summary-card {
-                    background: white;
-                    border: 1px solid rgba(0, 0, 0, 0.05);
-                    border-radius: 24px;
-                    padding: 24px;
-                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                }
-                .summary-card:hover {
-                    box-shadow: 0 20px 40px -10px rgba(212, 175, 55, 0.1);
-                    transform: translateY(-5px);
-                    border-color: #D4AF37;
-                }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
-
+            
             <MemberNavbar />
 
-            <div className="max-w-[1400px] mx-auto pt-20 md:pt-32 px-4 md:px-10">
-                {/* Simplified Premium Header */}
-                <header className="mb-6 md:mb-10">
-                    <div className={`rounded-[24px] md:rounded-[48px] p-6 md:p-20 relative overflow-hidden shadow-xl transition-all duration-700 ${isAdmin ? 'bg-gradient-to-br from-black via-[#1a1a1a] to-[#2a1a0a] border-2 border-[#D4AF37]/20' : 'bg-gradient-to-br from-[#121212] to-[#2D1B18]'}`}>
-                        {/* Decorative background elements */}
-                        <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] transition-all duration-700 ${isAdmin ? 'bg-[#D4AF37]/10' : 'bg-[#D4AF37]/5'}`}></div>
-                        {isAdmin && <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-[#3E2723]/20 rounded-full blur-[60px]"></div>}
-
-                        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8">
-                            <div>
-                                <div className="flex items-center gap-4 mb-4">
-                                    {isAdmin && (
-                                        <div className="px-4 py-1.5 bg-[#D4AF37] text-black text-[9px] font-black uppercase tracking-[0.3em] rounded-full flex items-center gap-2 animate-pulse">
-                                            <ShieldCheck size={12} /> System Administrator
-                                        </div>
-                                    )}
-                                </div>
-                                <h1 className="text-2xl md:text-7xl font-serif font-black text-white mb-2 tracking-tight md:tracking-tighter">
-                                    Hello, <span className="text-[#D4AF37] italic font-light">{userData?.user_metadata?.full_name?.split(' ')[0] || 'Member'}</span>
-                                </h1>
-                                <p className="text-zinc-400 font-medium text-[11px] md:text-lg max-w-md leading-relaxed">
-                                    {isAdmin ? "Welcome back. You have full access to manage the collection and orders." : "Manage your orders and track your deliveries."}
-                                </p>
-                            </div>
-                            <div className="hidden sm:flex gap-4">
-                                <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-center">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">Account Type</p>
-                                    <p className="text-white font-black text-sm uppercase">{isAdmin ? 'Administrator' : 'Valued Member'}</p>
-                                </div>
-                            </div>
+            <div className="max-w-[1400px] mx-auto pt-24 md:pt-32 px-4 md:px-10">
+                
+                {/* Dashboard Back & Header Row */}
+                <div className="flex items-center justify-between mb-8">
+                    <button 
+                        onClick={() => window.history.back()} 
+                        className="flex items-center gap-2 text-zinc-400 hover:text-zinc-900 transition-colors group"
+                    >
+                        <div className="w-10 h-10 bg-white border border-zinc-200 rounded-full flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:text-white group-hover:border-[#D4AF37] transition-all">
+                            <ChevronLeft className="w-5 h-5" />
                         </div>
-                    </div>
-                </header>
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">Go Back</span>
+                    </button>
 
-                {/* Dashboard Navigation Bar (Mobile Scrollable) */}
-                <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-6 mb-8 scroll-smooth">
-                    {['purchases', 'tracking', 'support', 'gifting'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-shrink-0 px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] transition-all duration-300 flex items-center gap-3 ${activeTab === tab
-                                ? 'bg-[#3E2723] text-[#D4AF37] shadow-lg shadow-[#3E2723]/20 scale-105'
-                                : 'bg-white text-zinc-400 hover:text-zinc-900 border border-zinc-100'
-                                }`}
-                        >
-                            {tab === 'purchases' && <ShoppingBag className="w-4 h-4" />}
-                            {tab === 'tracking' && <Truck className="w-4 h-4" />}
-                            {tab === 'support' && <HeadphonesIcon className="w-4 h-4" />}
-                            {tab === 'gifting' && <Gift className="w-4 h-4" />}
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </button>
-                    ))}
-                </nav>
-
-                {/* Stats Overview */}
-                {activeTab === 'purchases' && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 mb-12">
-                        {[
-                            { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: 'brown' },
-                            { label: 'Spending', value: `₦${totalSpent.toLocaleString()}`, icon: Store, color: 'gold' },
-                            { label: 'In Transit', value: activeOrders, icon: Truck, color: 'emerald' },
-                            { label: 'Points', value: Math.floor(totalSpent / 1000), icon: Gift, color: 'purple' }
-                        ].map((stat, i) => (
-                            <div key={i} className="bg-white p-6 md:p-8 rounded-[32px] border border-zinc-100 shadow-sm hover:shadow-xl transition-all group">
-                                <stat.icon className="w-5 h-5 text-zinc-300 mb-4 group-hover:text-[#D4AF37] transition-colors" />
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">{stat.label}</p>
-                                <p className="text-xl md:text-2xl font-black text-zinc-900">{stat.value}</p>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Secondary Navigation (Desktop Only) */}
-                    <div className="hidden lg:block lg:col-span-3 space-y-4">
-                        <div className="bg-white p-8 rounded-[32px] border border-zinc-100 sticky top-32">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="w-12 h-12 bg-[#3E2723] rounded-2xl flex items-center justify-center text-[#D4AF37]">
-                                    <User className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-black text-zinc-900 truncate max-w-[150px]">{userData?.user_metadata?.full_name || 'Member'}</p>
-                                    <p className="text-[10px] text-zinc-400 font-medium truncate max-w-[150px]">{userData?.email}</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                {isAdmin && (
-                                    <Link href="/admin" className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl bg-zinc-900 text-[#D4AF37] hover:bg-black transition-all">
-                                        <ShieldCheck className="w-4 h-4" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Admin Hub</span>
-                                    </Link>
-                                )}
-                                <button
-                                    onClick={handleSecretBootstrap}
-                                    className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-zinc-400 hover:bg-zinc-50 transition-all"
-                                >
-                                    <ShieldCheck className="w-4 h-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">System Access</span>
-                                </button>
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-500 hover:bg-red-50 transition-all mt-4"
-                                >
-                                    <LogOut className="w-4 h-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Sign Out</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Content Component */}
-                    <div className="lg:col-span-9">
-                        <div className="glass-card min-h-[600px] p-8 md:p-12">
-                            {activeTab === 'purchases' && (
-                                <div className="animate-in">
-                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-                                        <div>
-                                            <h3 className="text-3xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order History</h3>
-                                            <p className="text-zinc-500 mt-2 text-sm font-medium">Review and track your past purchases here.</p>
-                                        </div>
-                                        <Link href="/shop">
-                                            <button className="bg-zinc-900 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all shadow-xl shadow-black/10">
-                                                New Purchase
-                                            </button>
-                                        </Link>
-                                    </div>
-
-                                    {orders.length === 0 ? (
-                                        <div className="py-16 md:py-24 text-center bg-zinc-50 rounded-[24px] md:rounded-[40px] border border-zinc-100 border-dashed">
-                                            <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-sm">
-                                                <ShoppingBag className="w-6 h-6 md:w-8 md:h-8 text-zinc-300" />
-                                            </div>
-                                            <p className="text-zinc-400 font-black uppercase tracking-[0.2em] text-[10px]">No orders found</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4 md:space-y-6">
-                                            {orders.map((order: any, idx: number) => (
-                                                <div key={idx} className="p-5 md:p-8 border border-zinc-100 rounded-[24px] md:rounded-[32px] bg-white hover:border-[#D4AF37] transition-all group">
-                                                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 md:gap-8">
-                                                        <div className="flex-1 space-y-4 md:space-y-6">
-                                                            <div className="flex items-center gap-3 md:gap-4">
-                                                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-3 py-1.5 md:px-4 md:py-2 rounded-full">#{order.id.slice(-6).toUpperCase()}</span>
-                                                                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 md:px-4 md:py-2 rounded-full ${order.status?.toLowerCase() === 'delivered' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                                                                    }`}>
-                                                                    {order.status || 'Processing'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex -space-x-2 md:-space-x-3 overflow-hidden">
-                                                                {order.items?.slice(0, 3).map((item: any, i: number) => (
-                                                                    <div key={i} className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-white border border-zinc-50 p-1.5 md:p-2 shadow-sm ring-2 ring-white">
-                                                                        <img src={item.image} alt="" className="w-full h-full object-contain" />
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <div className="w-full md:w-auto text-left md:text-right border-t md:border-t-0 pt-4 md:pt-0 border-zinc-50 flex md:block justify-between items-center">
-                                                            <div>
-                                                                <p className="text-xl md:text-3xl font-serif font-black">₦{order.total.toLocaleString()}</p>
-                                                                <p className="text-[9px] md:text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{new Date(order.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
-                                                            </div>
-                                                            <button className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] hover:text-black transition-colors md:block md:ml-auto md:mt-4">Details</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === 'tracking' && (
-                                <div className="animate-in pt-6">
-                                    <div className="text-center max-w-xl mx-auto mb-16">
-                                        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                                            <Truck className="w-10 h-10 text-emerald-600" />
-                                        </div>
-                                        <h3 className="text-4xl font-serif font-black mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>Track Your Scent</h3>
-                                        <p className="text-zinc-500 font-medium">Get real-time updates on your curated collection journey through our luxury logistics network.</p>
-                                    </div>
-
-                                    <div className="bg-zinc-50 p-10 md:p-14 rounded-[40px] border border-zinc-100 relative overflow-hidden">
-                                        <input
-                                            type="text"
-                                            placeholder="Enter Tracking ID (e.g., ORD-123456)"
-                                            className="w-full bg-white border border-zinc-200 rounded-full px-10 py-6 text-base font-bold text-center mb-6 focus:outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all shadow-sm"
-                                        />
-                                        <button className="w-full bg-[#121212] text-[#D4AF37] py-6 px-8 rounded-full text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10">
-                                            Track Order
-                                        </button>
-                                        <p className="text-[10px] text-zinc-400 text-center mt-8 font-bold uppercase tracking-widest">Tracking updates may take a few hours to appear</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'support' && (
-                                <div className="animate-in pt-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                        <div>
-                                            <h3 className="text-4xl font-serif font-black mb-6" style={{ fontFamily: 'var(--font-playfair), serif' }}>Concierge <br />Support</h3>
-                                            <p className="text-zinc-500 font-medium leading-relaxed mb-10">Our luxury fragrance consultants are available to assist with any enquiries regarding your orders or scent selections.</p>
-
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-3xl border border-zinc-100">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                                                        <Store className="w-5 h-5 text-[#D4AF37]" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Call Us</p>
-                                                        <p className="text-sm font-black">+234 813 248 4859</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-3xl border border-zinc-100">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                                                        <HeadphonesIcon className="w-5 h-5 text-[#D4AF37]" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Email Us</p>
-                                                        <p className="text-sm font-black">support@wearabbie.com</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <form className="space-y-6 bg-zinc-50 p-8 md:p-10 rounded-[40px] border border-zinc-100">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Subject</label>
-                                                <input type="text" className="w-full bg-white border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37]" placeholder="Order issue, Inquiry, etc." />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Message</label>
-                                                <textarea rows={5} className="w-full bg-white border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] resize-none" placeholder="How can we assist you today?"></textarea>
-                                            </div>
-                                            <button type="button" className="bg-[#3E2723] text-white py-5 px-8 rounded-full text-xs font-black uppercase tracking-widest hover:bg-black transition-all w-full shadow-lg shadow-[#3E2723]/20">
-                                                Submit Inquiry
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'gifting' && (
-                                <div className="animate-in pt-6">
-                                    <div className="relative rounded-[40px] overflow-hidden group">
-                                        <img src="/perfumes/barakkat-rouge-540-maison-alhambra.png" className="w-full h-[500px] object-cover opacity-20 group-hover:scale-105 transition-transform duration-1000" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/40 to-transparent flex flex-col items-center justify-end p-12 text-center">
-                                            <Gift className="w-16 h-16 text-[#D4AF37] mb-8" />
-                                            <h3 className="text-4xl font-serif font-black text-white mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>The Art of Gifting</h3>
-                                            <p className="text-white/60 font-medium text-lg max-w-xl mb-10">Elevate your gift with our signature gold-embossed packaging and personalized luxury notes. Deliver excellence directly to their doorstep.</p>
-                                            <Link href="/shop">
-                                                <button className="bg-[#D4AF37] text-white py-5 px-12 rounded-full text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all shadow-2xl">
-                                                    Start Selection
-                                                </button>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                        </div>
+                    <div className="flex bg-white px-6 py-3 rounded-full border border-zinc-100 shadow-sm items-center gap-3">
+                        <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#3E2723]">Curated Delivery</span>
                     </div>
                 </div>
+
+                {/* Greeting Section */}
+                <div className="bg-[#121212] rounded-[32px] md:rounded-[48px] p-8 md:p-16 relative overflow-hidden shadow-2xl mb-12 flex flex-col items-center text-center">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-[80px]"></div>
+                    <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#3E2723]/20 rounded-full blur-[80px]"></div>
+                    
+                    <h1 className="text-4xl md:text-7xl font-serif font-black text-white relative z-10 mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>
+                        Welcome back, <span className="text-[#D4AF37] italic font-light">{userData?.user_metadata?.full_name?.split(' ')[0] || 'Member'}</span>.
+                    </h1>
+                    <p className="text-zinc-400 font-medium text-sm md:text-lg max-w-xl relative z-10 mx-auto">
+                        Your personalized fragrance collection awaits. Discover new arrivals and secure your favorite scents instantly based on your preferences.
+                    </p>
+                </div>
+
+                {/* Categories Navigation */}
+                <div className="flex items-center gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-6 mb-8 scroll-smooth">
+                    {categories.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`flex-shrink-0 px-8 py-4 rounded-full font-black uppercase tracking-widest text-[10px] transition-all duration-300 ${
+                                activeCategory === cat
+                                ? 'bg-[#3E2723] text-[#D4AF37] shadow-xl shadow-[#3E2723]/20 scale-105 border-transparent'
+                                : 'bg-white text-zinc-400 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300'
+                            }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Dynamic Product Grid */}
+                <div className="animate-in">
+                    {loading ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="bg-white rounded-[32px] h-[350px] w-full p-6 border border-zinc-100 shadow-sm animate-pulse flex flex-col">
+                                    <div className="aspect-square bg-zinc-50 rounded-2xl mb-6 flex-1"></div>
+                                    <div className="h-4 bg-zinc-100 rounded w-1/2 mb-3"></div>
+                                    <div className="h-6 bg-zinc-100 rounded w-3/4"></div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            {filteredProducts.length === 0 ? (
+                                <div className="py-24 bg-white rounded-[40px] border border-zinc-100 border-dashed text-center flex flex-col items-center justify-center">
+                                    <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mb-6">
+                                        <Search className="w-8 h-8 text-zinc-300" />
+                                    </div>
+                                    <h3 className="text-2xl font-serif font-black mb-2 text-zinc-900">No {activeCategory} Scents Available</h3>
+                                    <p className="text-zinc-500 font-medium text-sm max-w-md">Our collection for this category is currently empty. Check back soon or explore other curated categories.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+                                    {filteredProducts.map((p: Product) => (
+                                        <Link href={`/product/${p.id}`} key={p.id} className="bg-white rounded-[24px] md:rounded-[32px] p-3 md:p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.1)] transition-all duration-500 group flex flex-col h-full active:scale-95">
+                                            <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-5 flex items-center justify-center p-4 relative overflow-hidden">
+                                                <img 
+                                                    src={p.image} 
+                                                    alt={p.name} 
+                                                    className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${!p.inStock ? 'opacity-50 grayscale' : ''}`} 
+                                                    loading="lazy"
+                                                />
+                                                {p.isCOD && (
+                                                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-zinc-200 text-zinc-600 z-10 shadow-sm">COD</span>
+                                                )}
+                                                {!p.inStock && (
+                                                    <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-20">
+                                                        <span className="text-[10px] tracking-widest uppercase font-black text-white bg-red-600 px-4 py-2 rounded-full shadow-2xl">Sold Out</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 flex flex-col">
+                                                <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-[#D4AF37] mb-1">{p.category}</span>
+                                                <h3 className="text-xs md:text-base font-serif font-black line-clamp-2 leading-tight text-zinc-900" style={{ fontFamily: 'var(--font-playfair), serif' }}>{p.name}</h3>
+                                                <div className="mt-auto pt-4 flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Price</p>
+                                                        <p className={`text-sm md:text-lg font-black ${!p.inStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{p.price?.toLocaleString()}</p>
+                                                    </div>
+                                                    <button
+                                                        disabled={!p.inStock}
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(p); }}
+                                                        className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${p.inStock ? 'bg-zinc-900 text-white hover:bg-[#D4AF37] shadow-xl hover:-translate-y-1' : 'bg-zinc-100 text-zinc-300 cursor-not-allowed'}`}
+                                                    >
+                                                        <ShoppingBag className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
             </div>
         </div>
     );
