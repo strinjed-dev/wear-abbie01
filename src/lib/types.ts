@@ -36,10 +36,12 @@ export interface Order {
     profiles?: {
         full_name: string;
         email: string;
+        phone?: string;
     };
     tracking_code?: string;
     contact_email?: string;
     contact_phone?: string;
+    phone?: string;
     payment_method?: string;
     payment_status?: string;
     rider_id?: string;
