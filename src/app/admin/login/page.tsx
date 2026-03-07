@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -10,7 +12,7 @@ export default function AdminLoginPage() {
         if (key === process.env.NEXT_PUBLIC_ADMIN_BOOTSTRAP_KEY) {
             // Simple client‑side auth – store flag in localStorage
             localStorage.setItem('isAdmin', 'true');
-            router.push('/admin/dashboard');
+            router.push('/admin');
         } else {
             alert('Invalid admin key');
         }
