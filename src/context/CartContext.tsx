@@ -25,7 +25,7 @@ interface CartContextType {
     notifications: Notification[];
     unreadCount: number;
     markNotificationRead: (id: string) => void;
-    markAllNotificationsRead: (userId: string) => void;
+    markAllNotificationsRead: () => void;
     userProfile: any;
     accountSummary: { orderCount: number; totalSpent: number };
 }
