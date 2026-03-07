@@ -309,6 +309,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // Prepare order data — include BOTH possible column names for maximum compatibility
         const orderData: Record<string, any> = {
             user_id: session?.user?.id || null,
+            customer_name: `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || null,
             total_amount: total,
             total: total,
             tracking_code: generatedTrackingCode,
@@ -334,13 +335,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // If insert failed due to unknown column, retry without the problematic field
         if (insertError && insertError.message?.includes('column')) {
             console.warn("Retrying order insert with alternative schema:", insertError.message);
-            // Remove whichever column is not recognized
+            // Robust retry: extract the missing column name from the error message and remove it
+            const matches = insertError.message.match(/column "(.+)" of relation/);
+            const problematicColumn = matches ? matches[1] : null;
+            
             const altData = { ...orderData };
-            if (insertError.message.includes('"total"')) {
-                delete altData.total;
-            } else if (insertError.message.includes('"total_amount"')) {
-                delete altData.total_amount;
+            if (problematicColumn && altData.hasOwnProperty(problematicColumn)) {
+                delete altData[problematicColumn];
+            } else {
+                // Fallback for hardcoded cases if regex fails
+                if (insertError.message.includes('"total"')) delete altData.total;
+                if (insertError.message.includes('"total_amount"')) delete altData.total_amount;
+                if (insertError.message.includes('"customer_name"')) delete altData.customer_name;
             }
+
             const retryResult = await supabase
                 .from('orders')
                 .insert([altData])

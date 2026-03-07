@@ -31,6 +31,8 @@ export interface Order {
     };
     shipping_area?: string;
     shipping_state?: string;
+    customer_name?: string;
+    shipping_fee?: number;
     profiles?: {
         full_name: string;
         email: string;
