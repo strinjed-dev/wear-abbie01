@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from './supabase';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/1726/1726-preview.mp3'; // More premium double-chime for luxury feel
 
@@ -85,7 +86,7 @@ export class NotificationManager {
             .subscribe();
 
         // If admin, also listen for new orders
-        let orderChannel;
+        let orderChannel: RealtimeChannel | null = null;
         if (isAdmin) {
             orderChannel = supabase
                 .channel('public:orders:admin')
