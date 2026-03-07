@@ -9,7 +9,7 @@ export type { Product, CartItem, Order, Notification };
 
 interface CartContextType {
     cart: CartItem[];
-    addToCart: (product: any) => void;
+    addToCart: (product: Product | any) => void;
     removeFromCart: (productId: string) => void;
     updateQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
@@ -24,8 +24,8 @@ interface CartContextType {
     clearLastAddedItem: () => void;
     notifications: Notification[];
     unreadCount: number;
-    markNotificationRead: (id: string) => void;
-    markAllNotificationsRead: () => void;
+    markNotificationRead: (id: string) => void | Promise<void>;
+    markAllNotificationsRead: () => void | Promise<void>;
     userProfile: any;
     accountSummary: { orderCount: number; totalSpent: number };
 }
@@ -392,6 +392,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             searchQuery, setSearchQuery,
             lastAddedItem, clearLastAddedItem,
             notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
+            userProfile, accountSummary
         }}>
             {children}
         </CartContext.Provider>
