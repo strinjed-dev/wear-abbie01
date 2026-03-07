@@ -29,7 +29,7 @@ export default function CartDrawer() {
                 {/* Header */}
                 <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight text-zinc-900 leading-none mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Your Bag</h2>
+                        <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight text-zinc-900 leading-none mb-1" style={{ fontFamily: 'var(--font-playfair), serif' }}>Boutique Bag</h2>
                         <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">{cart.length} Item(s)</p>
                     </div>
                     <button
@@ -112,7 +112,7 @@ export default function CartDrawer() {
                             <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mb-6">
                                 <ShoppingBag className="w-8 h-8 text-zinc-300" />
                             </div>
-                            <p className="text-zinc-400 font-serif italic text-xl md:text-2xl mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>The Bag is Empty.</p>
+                            <p className="text-zinc-400 font-serif italic text-xl md:text-2xl mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>Your Boutique Bag is Empty.</p>
                             <button
                                 onClick={() => setIsCartOpen(false)}
                                 className="text-[#D4AF37] font-black uppercase tracking-[0.2em] text-[10px] underline underline-offset-8"
@@ -144,7 +144,7 @@ export default function CartDrawer() {
 
                         <Link href="/checkout" onClick={() => setIsCartOpen(false)} className="w-full bg-[#3E2723] text-white py-5 md:py-6 rounded-full font-black uppercase tracking-[0.2em] text-[10px] md:text-[11px] hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-4 group">
                             <LockIcon size={18} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
-                            Secure Checkout <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            Checkout Boutique Bag <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </Link>
 
                         <div className="mt-6 flex items-center justify-center gap-3 opacity-40">

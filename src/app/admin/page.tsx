@@ -316,7 +316,8 @@ export default function AdminDashboard() {
                 is_active: payload.is_active ?? true,
                 is_cod: payload.is_cod ?? true,
                 fragrance_notes: payload.fragrance_notes || '',
-                stock: parseInt(payload.stock.toString())
+                stock: parseInt(payload.stock.toString()),
+                image: url || payload.image_url || payload.image || '' // Explicitly set 'image' as well just in case
             });
 
         if (!error) {
@@ -326,8 +327,13 @@ export default function AdminDashboard() {
             setUrl("");
             setRefreshTrigger((p: number) => p + 1);
         } else {
-            console.error("Product action error:", error);
-            alert("Error: " + error.message);
+            console.error("FULL SUPABASE PRODUCT ERROR:", {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            }, error);
+            alert(`Product Registry Error (${error.code || 'UNK'}): ${error.message}\n\nHint: ${error.hint || 'No hint available'}`);
         }
     };
 

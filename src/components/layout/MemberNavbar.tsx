@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, Search, User, X, LogOut, LayoutDashboard, Bell, Store, ShieldCheck } from "lucide-react";
-import { useCart } from "@/context/CartContext";
+import { useCart, CartItem } from "@/context/CartContext";
 import { supabase, getSafeSession } from "@/lib/supabase";
+import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import NotificationBell from "@/components/ui/NotificationBell";
@@ -17,21 +18,23 @@ interface NavItem {
 const mainMenu: NavItem[] = [
     { label: "Home", href: "/" },
     { label: "Shop Scents", href: "/shop" },
-    { label: "Track Order", href: "/tracking" },
+    { label: "Gift Sets", href: "/shop?category=Gift Sets" },
     { label: "Journal", href: "/journal" },
-    { label: "Contact Us", href: "https://wa.me/2348132484859" },
+    { label: "Feedback", href: "https://wa.me/2348132484859?text=Hello%20Wear%20Abbie,%20I'd%20like%20to%20give%20some%20feedback." },
+    { label: "Contact Support", href: "https://wa.me/2348132484859" },
 ];
 
 export default function MemberNavbar() {
     const { cart, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
     const [isOpen, setIsOpen] = useState(false);
-    const [userData, setUserData] = useState<any>(null);
+    const [userData, setUserData] = useState<Session['user'] | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [showSignOutToast, setShowSignOutToast] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
 
-    const cartCount = cart.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+    const cartCount = cart.reduce((sum: number, item: CartItem) => sum + (item.quantity || 0), 0);
 
     const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -47,7 +50,7 @@ export default function MemberNavbar() {
         };
         getUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
             setUserData(session?.user || null);
             if (session?.user) {
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
@@ -93,6 +96,15 @@ export default function MemberNavbar() {
 
                 {/* RIGHT: SEARCH & CART */}
                 <div className="flex items-center gap-2 md:gap-5">
+                    {/* Mobile Search Toggle */}
+                    <button
+                        onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                        className="flex md:hidden w-10 h-10 items-center justify-center hover:bg-neutral-50 rounded-full transition-all"
+                        aria-label="Toggle Search"
+                    >
+                        {isMobileSearchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5 text-black" />}
+                    </button>
+
                     {/* Search Toggle/Field (Desktop) */}
                     <div className="hidden md:flex items-center bg-neutral-50 px-4 py-2 rounded-full border border-neutral-100 focus-within:bg-white focus-within:border-[#D4AF37] transition-all">
                         <Search className="w-4 h-4 text-neutral-400" />
@@ -135,6 +147,30 @@ export default function MemberNavbar() {
                 </div>
 
             </nav>
+
+            {/* Mobile Search Overlay */}
+            <AnimatePresence>
+                {isMobileSearchOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="fixed top-[70px] left-0 w-full bg-white/95 backdrop-blur-lg border-b border-neutral-100 p-4 z-[45] md:hidden"
+                    >
+                        <div className="flex items-center bg-neutral-50 px-5 py-3 rounded-2xl border border-neutral-100 focus-within:bg-white focus-within:border-[#D4AF37] transition-all">
+                            <Search className="w-4 h-4 text-neutral-400" />
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Find a scent..."
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                className="bg-transparent border-none outline-none text-[11px] ml-3 w-full font-black uppercase tracking-widest text-zinc-900"
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* SLIDE MENU */}
             <AnimatePresence>
@@ -195,13 +231,16 @@ export default function MemberNavbar() {
                                         <a
                                             href={item.href}
                                             onClick={(e) => {
-                                              if (item.href === "/shop" || item.href === "/dashboard") {
-                                                // Let native link handle
-                                              } else {
+                                                const isExternal = item.href.startsWith("http");
+                                                if (isExternal) {
+                                                    // Allow external links (WhatsApp) to work normally
+                                                    setIsOpen(false);
+                                                    return;
+                                                }
+                                                
                                                 e.preventDefault();
                                                 router.push(item.href);
-                                              }
-                                              setIsOpen(false);
+                                                setIsOpen(false);
                                             }}
                                             className={`block py-4 px-4 rounded-2xl transition-all text-sm font-bold flex items-center justify-between group
                         ${pathname === item.href ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : 'hover:bg-neutral-50 text-neutral-700'}`}

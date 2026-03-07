@@ -228,7 +228,7 @@ export default function UserShoppingDashboard() {
                                                                     }}
                                                                     className={`w-full py-3 mt-3 rounded-xl flex items-center justify-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all ${p.inStock ? 'bg-[#121212] text-white hover:bg-[#D4AF37] shadow-xl hover:-translate-y-0.5 cursor-pointer' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'}`}
                                                                 >
-                                                                    <ShoppingBag className="w-3 h-3" /> Add to Cart
+                                                                    <ShoppingBag className="w-3 h-3" /> Add to Boutique Bag
                                                                 </div>
                                                             </div>
                                                         </div>

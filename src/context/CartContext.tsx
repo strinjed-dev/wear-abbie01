@@ -44,7 +44,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const [userProfile, setUserProfile] = useState<any>(null);
     const [accountSummary, setAccountSummary] = useState({ orderCount: 0, totalSpent: 0 });
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = notifications.filter((n: Notification) => !n.is_read).length;
 
     const clearLastAddedItem = useCallback(() => setLastAddedItem(null), []);
 
@@ -74,7 +74,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 setOrders(mapped);
                 setAccountSummary({
                     orderCount: mapped.length,
-                    totalSpent: mapped.reduce((acc, curr) => acc + (curr.total || 0), 0)
+                    totalSpent: mapped.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0)
                 });
             }
         } else {
@@ -279,11 +279,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Guard: prevent zero-total orders
         if (total <= 0 || cart.length === 0) {
-            throw new Error("Your cart is empty or the order total is invalid.");
+            throw new Error("Your Boutique Bag is empty or the order total is invalid.");
         }
 
         // --- NEW: Stock Verification Guard ---
-        // Before creating order, double check stock for ALL items in cart
+        // Before creating order, double check stock for ALL items in Boutique Bag
         for (const item of cart) {
             const { data: pData } = await supabase
                 .from('products')
@@ -294,7 +294,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             if (pData) {
                 const available = Number(pData.stock) || 0;
                 if (available < item.quantity) {
-                    throw new Error(`Insufficient stock for "${pData.name}". Available: ${available}, but you have ${item.quantity} in cart.`);
+                    throw new Error(`Insufficient stock for "${pData.name}". Available: ${available}, but you have ${item.quantity} in Boutique Bag.`);
                 }
             }
         }

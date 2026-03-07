@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, ChevronLeft, CreditCard, Truck, ShieldCheck, ArrowRight, X, Heart, MapPin, Phone, Mail, User } from 'lucide-react';
 
-import { useCart } from '@/context/CartContext';
+import { useCart, CartItem } from '@/context/CartContext';
 import { supabase, getSafeSession } from '@/lib/supabase';
+import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { deliveryPricing, getDeliveryCost } from '@/utils/deliveryPricing';
 import Script from 'next/script';
 
@@ -29,14 +30,14 @@ export default function CheckoutPage() {
         };
         checkAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             setIsLoggedIn(!!session);
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    const total = cart.reduce((add, item) => add + (item.price * item.quantity), 0);
+    const total = cart.reduce((add: number, item: CartItem) => add + (item.price * item.quantity), 0);
     const logistics = getDeliveryCost(customer.state, customer.area);
 
     const initiatePaystack = (orderInfo: { email: string; total: number; tracking_code: string }) => {
@@ -356,7 +357,7 @@ export default function CheckoutPage() {
                                         <div className="w-6 h-6 border-2 border-zinc-200 border-t-[#D4AF37] rounded-full animate-spin"></div>
                                     </div>
                                 ) : cart.length === 0 ? (
-                                    <p className="text-zinc-500 font-medium text-xs">Your cart is empty.</p>
+                                    <p className="text-zinc-500 font-medium text-xs">Your Boutique Bag is empty.</p>
                                 ) : (
                                     cart.map((item, idx) => (
                                         <div key={idx} className="flex gap-6 items-center">

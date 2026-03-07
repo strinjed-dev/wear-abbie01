@@ -7,12 +7,16 @@ import { useCart, Product, CartItem } from '@/context/CartContext';
 import { supabase, getSafeSession } from '@/lib/supabase';
 import MemberNavbar from '@/components/layout/MemberNavbar';
 import Link from 'next/link';
-
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 // --- Monolithic Shop Page Component ---
-export default function Shop() {
+function ShopContent() {
     const { cart, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
-    const [category, setCategory] = useState("All");
+    const searchParams = useSearchParams();
+    const initialCategory = searchParams.get('category') || "All";
+    
+    const [category, setCategory] = useState(initialCategory);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -139,6 +143,13 @@ export default function Shop() {
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [currentPage]);
+
+    useEffect(() => {
+        const cat = searchParams.get('category');
+        if (cat) {
+            setCategory(cat);
+        }
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen flex flex-col bg-white text-zinc-900 overflow-x-hidden">
@@ -277,6 +288,7 @@ export default function Shop() {
                                                     if (p.inStock) addToCart(p);
                                                 }}
                                                 className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${p.inStock ? "bg-[#D4AF37] text-white hover:bg-[#3E2723] shadow-[#D4AF37]/20 cursor-pointer" : "bg-zinc-100 text-zinc-300 cursor-not-allowed shadow-none"}`}
+                                                title="Add to Boutique Bag"
                                             >
                                                 <ShoppingBag className="w-3.5 h-3.5 md:w-5 md:h-5" />
                                             </div>
@@ -362,14 +374,14 @@ export default function Shop() {
                         <ul className="space-y-3 md:space-y-4 text-sm font-bold text-zinc-500">
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/shop">Wear Abbie Boutique</a></li>
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/journal">The Journal</a></li>
-                            <li className="hover:text-zinc-900 cursor-pointer transition-colors">Gifting Suite</li>
+                            <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/shop?category=Gift Sets">Gifting Suite</a></li>
                         </ul>
                     </div>
                     <div>
                         <h4 className="font-black uppercase tracking-widest text-xs mb-6 md:mb-8 text-zinc-400">Wear Abbie Help</h4>
                         <ul className="space-y-3 md:space-y-4 text-sm font-bold text-zinc-500">
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/tracking">Order Tracking</a></li>
-                            <li className="hover:text-zinc-900 cursor-pointer transition-colors">Customer Support</li>
+                            <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="https://wa.me/2348132484859" target="_blank" rel="noopener noreferrer">Customer Support</a></li>
                         </ul>
                     </div>
                     <div className="flex flex-col items-center md:items-start">
@@ -394,5 +406,20 @@ export default function Shop() {
             </footer>
 
         </div>
+    );
+}
+
+export default function Shop() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-white font-serif">
+                <div className="flex flex-col items-center gap-6">
+                    <img src="/logo.png" className="h-20 animate-pulse" alt="Loading..." />
+                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37]">Waking up the scents...</p>
+                </div>
+            </div>
+        }>
+            <ShopContent />
+        </Suspense>
     );
 }

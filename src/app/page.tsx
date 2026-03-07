@@ -286,6 +286,7 @@ export default function Home() {
                                                 disabled={!p.inStock}
                                                 onClick={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); addToCart(p); }}
                                                 className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${p.inStock ? "bg-[#D4AF37] text-white hover:bg-[#3E2723] shadow-[#D4AF37]/20" : "bg-zinc-100 text-zinc-300 cursor-not-allowed shadow-none"}`}
+                                                title="Add to Boutique Bag"
                                             >
                                                 <ShoppingBag className="w-3.5 h-3.5 md:w-5 md:h-5" />
                                             </button>
@@ -338,15 +339,15 @@ export default function Home() {
                         <ul className="space-y-3 md:space-y-4 text-sm font-bold text-zinc-500">
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/shop">Shop Fragments</a></li>
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/journal">The Scent Journal</a></li>
-                            <li className="hover:text-zinc-900 cursor-pointer transition-colors">Gift Sets</li>
+                            <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/shop?category=Gift Sets">Gift Sets</a></li>
                         </ul>
                     </div>
                     <div>
                         <h4 className="font-black uppercase tracking-widest text-xs mb-6 md:mb-8 text-zinc-400">Customer Care</h4>
                         <ul className="space-y-3 md:space-y-4 text-sm font-bold text-zinc-500">
                             <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="/tracking">Track Order</a></li>
-                            <li className="hover:text-zinc-900 cursor-pointer transition-colors">Contact Support</li>
-                            <li className="hover:text-zinc-900 cursor-pointer transition-colors">Feedback</li>
+                            <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="https://wa.me/2348132484859" target="_blank" rel="noopener noreferrer">Contact Support</a></li>
+                            <li className="hover:text-zinc-900 cursor-pointer transition-colors"><a href="https://wa.me/2348132484859?text=Hello%20Wear%20Abbie,%20I'd%20like%20to%20give%20some%20feedback." target="_blank" rel="noopener noreferrer">Feedback</a></li>
                         </ul>
                     </div>
                     <div className="flex flex-col items-center md:items-start">
