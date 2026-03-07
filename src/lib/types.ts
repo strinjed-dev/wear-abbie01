@@ -31,12 +31,15 @@ export interface Order {
     };
     shipping_area?: string;
     shipping_state?: string;
+    shipping_address?: string;
     customer_name?: string;
     shipping_fee?: number;
     profiles?: {
         full_name: string;
         email: string;
         phone?: string;
+        address?: string;
+        location?: string;
     };
     tracking_code?: string;
     contact_email?: string;
