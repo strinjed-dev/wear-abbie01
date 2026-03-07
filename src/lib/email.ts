@@ -2,7 +2,9 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key');
+// Use a safe fallback key — Resend won't actually send without a real key,
+// but this prevents the constructor from throwing during module initialization.
+const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_key_set_in_env');
 
 const BRAND_GOLD = '#D4AF37';
 const BRAND_BROWN = '#3E2723';
@@ -11,7 +13,7 @@ const BRAND_BLACK = '#121212';
 export const sendEmail = async ({ to, subject, html }: { to: string; subject: string; html: string }) => {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'Wear Abbie Concierge <concierge@wear-abbie.com>',
+            from: 'Wear Abbie Concierge <verification@wearabbie.com.ng>',
             to,
             subject,
             html,

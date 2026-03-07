@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingBag, ChevronLeft, CreditCard, Truck, ShieldCheck, ArrowRight, X, Heart, MapPin, Phone, Mail, User } from 'lucide-react';
 
 import { useCart } from '@/context/CartContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, getSafeSession } from '@/lib/supabase';
 import { deliveryPricing, getDeliveryCost } from '@/utils/deliveryPricing';
 import Script from 'next/script';
 
@@ -18,7 +18,7 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await getSafeSession();
             setIsLoggedIn(!!session);
             if (session?.user) {
                 setCustomer((prev: any) => ({ ...prev, email: session.user.email || '', firstName: session.user.user_metadata?.full_name || '' }));
@@ -83,7 +83,7 @@ export default function CheckoutPage() {
                     `Hello Wear Abbie! I just placed an order.\n\n` +
                     `*Tracking Code:* ${result?.tracking_code || result?.order_id}\n` +
                     `*Amount to Transfer:* ₦${grandTotal.toLocaleString()}\n` +
-                    `*PalmPay Account:* 8132484859 (Titilope Tijani)\n\n` +
+                    `*PalmPay Account:* 8092752566 (Titilope Tijani)\n\n` +
                     `I will send my payment screenshot shortly.`
                 );
 
@@ -272,7 +272,7 @@ export default function CheckoutPage() {
                                                     </div>
                                                     <div className="flex justify-between items-center">
                                                         <span className="font-black text-zinc-400 uppercase tracking-widest text-[10px]">Account Number</span>
-                                                        <span className="font-black text-2xl text-zinc-900 tracking-[0.2em]">8132484859</span>
+                                                        <span className="font-black text-2xl text-zinc-900 tracking-[0.2em]">8092752566</span>
                                                     </div>
                                                     <div className="flex justify-between items-center text-[10px]">
                                                         <span className="font-black text-zinc-400 uppercase tracking-widest">Account Name</span>

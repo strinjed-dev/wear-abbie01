@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, getSafeSession } from '@/lib/supabase';
 import { Package, User, LogOut, ShoppingBag, Truck, HeadphonesIcon, Gift, Store, ShieldCheck, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -61,9 +61,9 @@ const OrderCard = ({ order }: OrderCardProps) => {
                     <p className="text-[10px] font-black uppercase text-zinc-400 mb-6 tracking-widest">Scent Registry (Items)</p>
                     <div className="space-y-4">
                         {order.items?.map((item: any, i: number) => (
-                            <Link 
-                                href={`/product/${item.id || item.productId}`} 
-                                key={i} 
+                            <Link
+                                href={`/product/${item.id || item.productId}`}
+                                key={i}
                                 className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl hover:bg-white hover:shadow-sm transition-all group/item border border-transparent hover:border-zinc-100 cursor-pointer relative z-[20]"
                             >
                                 <div className="flex items-center gap-4">
@@ -117,16 +117,16 @@ const OrderCard = ({ order }: OrderCardProps) => {
 export default function UserProfile() {
     const { orders } = useCart();
     const [activeTab, setActiveTab] = useState('purchases');
-    
+
     // Wishlist Data
     const [wishlist, setWishlist] = useState<any[]>([]);
 
     useEffect(() => {
         const loadWishlist = () => {
-             const stored = localStorage.getItem('wear_abbie_wishlist');
-             if (stored) {
-                 try { setWishlist(JSON.parse(stored)); } catch (e) {}
-             }
+            const stored = localStorage.getItem('wear_abbie_wishlist');
+            if (stored) {
+                try { setWishlist(JSON.parse(stored)); } catch (e) { }
+            }
         };
         loadWishlist();
         window.addEventListener('storage', loadWishlist);
@@ -145,18 +145,20 @@ export default function UserProfile() {
     useEffect(() => {
         const fetchSupabaseIdentity = async () => {
             try {
-                const { data: { session }, error } = await supabase.auth.getSession();
+                // LockManager Fix: Use getSafeSession to prevent parallel auth requests stalling on browser locks
+                const { data: { session }, error } = await getSafeSession();
                 if (error || !session) {
                     window.location.href = '/auth'; // Redirect unauthenticated users
                     return;
                 }
                 setUserData(session.user);
 
-                // Fetch user role
-                const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+                // Fetch user profile info
+                const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
                 if (profile && profile.role === 'admin') {
                     setIsAdmin(true);
                 }
+                setUserData({ ...session.user, profile_data: profile || {} });
 
                 // --- Real-time Order Synchronization ---
                 const channel = supabase
@@ -290,7 +292,7 @@ export default function UserProfile() {
 
                 {/* Dashboard Navigation Bar (Mobile Scrollable) */}
                 <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-6 mb-8 scroll-smooth">
-                    {['purchases', 'tracking', 'support', 'gifting', 'wishlist', 'settings'].map((tab) => (
+                    {['purchases', 'support', 'gifting', 'wishlist', 'settings'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -300,7 +302,6 @@ export default function UserProfile() {
                                 }`}
                         >
                             {tab === 'purchases' && <ShoppingBag className="w-4 h-4" />}
-                            {tab === 'tracking' && <Truck className="w-4 h-4" />}
                             {tab === 'support' && <HeadphonesIcon className="w-4 h-4" />}
                             {tab === 'gifting' && <Gift className="w-4 h-4" />}
                             {tab === 'wishlist' && <svg className="w-4 h-4 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
@@ -380,7 +381,7 @@ export default function UserProfile() {
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
                                         <div>
                                             <h3 className="text-3xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order History</h3>
-                                            <p className="text-zinc-500 mt-2 text-sm font-medium">Review and track your past purchases here.</p>
+                                            <p className="text-zinc-500 mt-2 text-sm font-medium">Review your past purchases and current order status.</p>
                                         </div>
                                         <Link href="/shop">
                                             <button className="bg-zinc-900 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all shadow-xl shadow-black/10">
@@ -403,30 +404,6 @@ export default function UserProfile() {
                                             ))}
                                         </div>
                                     )}
-                                </div>
-                            )}
-
-                            {activeTab === 'tracking' && (
-                                <div className="animate-in pt-6">
-                                    <div className="text-center max-w-xl mx-auto mb-16">
-                                        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                                            <Truck className="w-10 h-10 text-emerald-600" />
-                                        </div>
-                                        <h3 className="text-4xl font-serif font-black mb-4" style={{ fontFamily: 'var(--font-playfair), serif' }}>Track Your Order</h3>
-                                        <p className="text-zinc-500 font-medium">Get real-time updates on your fragrance delivery through our carrier network.</p>
-                                    </div>
-
-                                    <div className="bg-zinc-50 p-10 md:p-14 rounded-[40px] border border-zinc-100 relative overflow-hidden">
-                                        <input
-                                            type="text"
-                                            placeholder="Enter Tracking ID (e.g., ORD-123456)"
-                                            className="w-full bg-white border border-zinc-200 rounded-full px-10 py-6 text-base font-bold text-center mb-6 focus:outline-none focus:border-[#D4AF37] focus:ring-4 focus:ring-[#D4AF37]/5 transition-all shadow-sm"
-                                        />
-                                        <button className="w-full bg-[#121212] text-[#D4AF37] py-6 px-8 rounded-full text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-black/10">
-                                            Track Order
-                                        </button>
-                                        <p className="text-[10px] text-zinc-400 text-center mt-8 font-bold uppercase tracking-widest">Tracking updates may take a few hours to appear</p>
-                                    </div>
                                 </div>
                             )}
 
@@ -460,27 +437,33 @@ export default function UserProfile() {
                                         </div>
                                         <form className="space-y-6 bg-zinc-50 p-8 md:p-10 rounded-[40px] border border-zinc-100" onSubmit={async (e) => {
                                             e.preventDefault();
-                                            const form = e.target as any;
-                                            const subject = form[0].value;
-                                            const message = form[1].value;
+                                            const form = e.target as HTMLFormElement;
+                                            const subject = (form.elements.namedItem('subject') as HTMLInputElement).value;
+                                            const message = (form.elements.namedItem('message') as HTMLTextAreaElement).value;
 
-                                            if (!subject || !message) return;
+                                            if (!subject || !message || !userData?.id) return;
 
                                             setLoading(true);
-                                            const { error } = await supabase.from('support_tickets').insert({
-                                                user_id: userData.id,
-                                                subject,
-                                                message,
-                                                status: 'open'
-                                            });
+                                            try {
+                                                const { error } = await supabase.from('support_tickets').insert({
+                                                    user_id: userData.id,
+                                                    subject,
+                                                    message,
+                                                    status: 'open'
+                                                });
 
-                                            if (error) {
-                                                alert("Submission failed. Please try again.");
-                                            } else {
-                                                alert("Inquiry submitted successfully. Our concierge will contact you soon.");
-                                                form.reset();
+                                                if (error) {
+                                                    alert("Submission failed. Please try again.");
+                                                } else {
+                                                    alert("Inquiry submitted successfully. Our concierge will contact you soon.");
+                                                    form.reset();
+                                                }
+                                            } catch (err) {
+                                                console.error("Support ticket error:", err);
+                                                alert("Submission failed. An unexpected error occurred.");
+                                            } finally {
+                                                setLoading(false);
                                             }
-                                            setLoading(false);
                                         }}>
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Subject</label>
@@ -537,7 +520,7 @@ export default function UserProfile() {
                                                         <p className="text-xs font-black">₦{item.price?.toLocaleString()}</p>
                                                         <div className="flex gap-3 mt-3">
                                                             <Link href={`/product/${item.id}`} className="text-[9px] font-black uppercase bg-black text-white px-4 py-2 rounded-full tracking-widest hover:bg-[#D4AF37] transition-colors">View</Link>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => {
                                                                     const updated = wishlist.filter(w => w.id !== item.id);
                                                                     setWishlist(updated);
@@ -560,7 +543,7 @@ export default function UserProfile() {
                                 <div className="animate-in pt-6 max-w-2xl">
                                     <h3 className="text-3xl font-serif font-black mb-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>Account Settings</h3>
                                     <p className="text-zinc-500 text-sm font-medium mb-10">Manage your delivery addresses and personal preferences.</p>
-                                    
+
                                     <form className="space-y-6" onSubmit={async (e) => {
                                         e.preventDefault();
                                         setLoading(true);
@@ -568,25 +551,79 @@ export default function UserProfile() {
                                         const fullName = (form.elements.namedItem('fullName') as HTMLInputElement).value;
                                         const phone = (form.elements.namedItem('phone') as HTMLInputElement).value;
                                         const address = (form.elements.namedItem('address') as HTMLInputElement).value;
-                                        
+                                        const theme = (form.elements.namedItem('theme') as HTMLSelectElement).value;
+
                                         if (userData?.id) {
-                                            const { error } = await supabase.from('profiles').update({
-                                                full_name: fullName,
-                                                phone: phone,
-                                                address: address
-                                            }).eq('id', userData.id);
-                                            
-                                            if (!error) {
-                                                const el = document.getElementById('settings-success');
-                                                if(el) { el.style.bottom = '20px'; setTimeout(() => el.style.bottom = '-100px', 3000); }
+                                            try {
+                                                const updateFields: any = {
+                                                    full_name: fullName,
+                                                    phone: phone,
+                                                    address: address, // Default attempt with 'address'
+                                                    location: address // Also set 'location' for compatibility
+                                                };
+
+                                                let { error } = await supabase.from('profiles').update(updateFields).eq('id', userData.id);
+
+                                                // If 'address' column is missing, retry without it (only using 'location')
+                                                if (error && error.message.includes('column "address"')) {
+                                                    console.warn("Retrying profile update without 'address' column...");
+                                                    delete updateFields.address;
+                                                    const retry = await supabase.from('profiles').update(updateFields).eq('id', userData.id);
+                                                    error = retry.error;
+                                                }
+
+                                                if (!error) {
+                                                    // Update user metadata for theme
+                                                    await supabase.auth.updateUser({
+                                                        data: { theme_preference: theme }
+                                                    });
+
+                                                    // Update local state to reflect changes immediately
+                                                    setUserData((prev: any) => ({
+                                                        ...prev,
+                                                        profile_data: {
+                                                            ...(prev?.profile_data || {}),
+                                                            full_name: fullName,
+                                                            phone: phone,
+                                                            address: address,
+                                                            location: address
+                                                        },
+                                                        user_metadata: {
+                                                            ...(prev?.user_metadata || {}),
+                                                            theme_preference: theme
+                                                        }
+                                                    }));
+
+                                                    // Trigger a local storage / DOM update for theme
+                                                    if (theme === 'dark') {
+                                                        document.documentElement.classList.add('dark');
+                                                        localStorage.setItem('theme', 'dark');
+                                                    } else if (theme === 'light') {
+                                                        document.documentElement.classList.remove('dark');
+                                                        localStorage.setItem('theme', 'light');
+                                                    } else {
+                                                        localStorage.removeItem('theme');
+                                                    }
+
+                                                    alert("Settings updated successfully! Reloading to apply changes...");
+                                                    window.location.reload();
+                                                } else {
+                                                    throw error;
+                                                }
+                                            } catch (err: any) {
+                                                console.error("Failed to save settings:", err.message);
+                                                alert("Failed to save settings: " + err.message);
+                                            } finally {
+                                                setLoading(false);
                                             }
+                                        } else {
+                                            setLoading(false);
                                         }
-                                        setLoading(false);
                                     }}>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
-                                                <input defaultValue={userData?.user_metadata?.full_name} name="fullName" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="John Doe" />
+                                                <input defaultValue={userData?.profile_data?.full_name || userData?.user_metadata?.full_name} name="fullName" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="John Doe" />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Email (Read Only)</label>
@@ -594,20 +631,28 @@ export default function UserProfile() {
                                             </div>
                                         </div>
                                         <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Phone Number</label>
-                                                <input name="phone" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="+234 XXX XXXX" />
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Phone Number</label>
+                                            <input defaultValue={userData?.profile_data?.phone || ""} name="phone" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="+234 XXX XXXX" />
                                         </div>
                                         <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Default Delivery Address</label>
-                                                <textarea name="address" rows={3} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900 resize-none" placeholder="123 Luxury Avenue, Lagos"></textarea>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Default Delivery Address</label>
+                                            <textarea defaultValue={userData?.profile_data?.address || ""} name="address" rows={3} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900 resize-none" placeholder="123 Luxury Avenue, Lagos"></textarea>
                                         </div>
-                                        
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Theme Preference</label>
+                                            <select name="theme" defaultValue={userData?.user_metadata?.theme_preference || "system"} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900">
+                                                <option value="system">System Default</option>
+                                                <option value="light">Light Mode</option>
+                                                <option value="dark">Dark Mode</option>
+                                            </select>
+                                        </div>
+
                                         <button disabled={loading} type="submit" className="bg-[#D4AF37] text-black py-5 px-10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-xl shadow-[#D4AF37]/20 disabled:opacity-50 flex items-center gap-3">
-                                            {loading ? "Saving Changes..." : "Save Preferences"} 
+                                            {loading ? "Saving Changes..." : "Save Preferences"}
                                             {!loading && <ShieldCheck className="w-4 h-4" />}
                                         </button>
                                     </form>
-                                    
+
                                     <div id="settings-success" className="fixed -bottom-24 left-1/2 -translate-x-1/2 bg-zinc-900 text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl flex items-center gap-3 transition-all duration-500 z-50">
                                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                                         Settings Saved Successfully

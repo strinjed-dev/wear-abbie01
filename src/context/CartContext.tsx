@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, getSafeSession } from "@/lib/supabase";
 
 import { Product, CartItem, Order, Notification } from "@/lib/types";
 
@@ -25,7 +25,9 @@ interface CartContextType {
     notifications: Notification[];
     unreadCount: number;
     markNotificationRead: (id: string) => void;
-    markAllNotificationsRead: () => void;
+    markAllNotificationsRead: (userId: string) => void;
+    userProfile: any;
+    accountSummary: { orderCount: number; totalSpent: number };
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -39,21 +41,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const [lastAddedItem, setLastAddedItem] = useState<Product | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [userId, setUserId] = useState<string | null>(null);
+    const [userProfile, setUserProfile] = useState<any>(null);
+    const [accountSummary, setAccountSummary] = useState({ orderCount: 0, totalSpent: 0 });
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const clearLastAddedItem = useCallback(() => setLastAddedItem(null), []);
 
-    const fetchOrders = useCallback(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+    const fetchOrders = useCallback(async (uid?: string) => {
+        const targetUid = uid || (await getSafeSession()).data.session?.user?.id;
+        
+        if (targetUid) {
             const { data: dbOrders } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('user_id', session.user.id)
+                .eq('user_id', targetUid)
                 .order('created_at', { ascending: false });
             if (dbOrders) {
-                setOrders(dbOrders.map((o: any) => ({
+                const mapped = dbOrders.map((o: any) => ({
                     id: o.id,
                     customer: { state: o.shipping_state, area: o.shipping_area, address: o.shipping_address },
                     items: o.items || [],
@@ -65,7 +70,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     payment_status: o.payment_status,
                     rider_id: o.rider_id,
                     current_location: o.current_location,
-                })));
+                }));
+                setOrders(mapped);
+                setAccountSummary({
+                    orderCount: mapped.length,
+                    totalSpent: mapped.reduce((acc, curr) => acc + (curr.total || 0), 0)
+                });
             }
         } else {
             const savedOrders = localStorage.getItem("wear_abbie_orders");
@@ -106,21 +116,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     try { initialCart = JSON.parse(savedCart); setCart(initialCart); } catch (e) { }
                 }
 
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error: sessionError } = await getSafeSession();
+
+                // Handle invalid/expired refresh tokens gracefully
+                if (sessionError) {
+                    console.warn("Session error (clearing stale session):", sessionError.message);
+                    await supabase.auth.signOut();
+                    setCart(initialCart);
+                    setIsInitialized(true);
+                    return () => { };
+                }
 
                 if (session?.user) {
                     setUserId(session.user.id);
 
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
-                        .select('cart')
+                        .select('*')
                         .eq('id', session.user.id)
                         .maybeSingle();
 
-                    if (profileError) {
-                        // Table may not exist yet — silent fail, use local cart
-                        console.warn("Profile table not ready:", profileError.message);
-                    }
+                    if (profile) setUserProfile(profile);
 
                     if (profile?.cart && Array.isArray(profile.cart) && profile.cart.length > 0) {
                         setCart(profile.cart as CartItem[]);
@@ -128,12 +144,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
                         setCart(initialCart);
                     }
 
-                    await fetchOrders();
+                    // Pass the already fetched user id to avoid redundant auth calls
+                    await fetchOrders(session.user.id);
                     await fetchNotifications(session.user.id);
                 } else {
                     setCart(initialCart);
                 }
-
                 // Auth state change listener
                 const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
                     if (event === 'SIGNED_OUT') {
@@ -141,23 +157,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
                         setOrders([]);
                         setNotifications([]);
                         setUserId(null);
+                        setUserProfile(null);
+                        setAccountSummary({ orderCount: 0, totalSpent: 0 });
                         localStorage.removeItem("wear_abbie_cart");
-                    } else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+                    } else if (session?.user) {
                         const newUid = session.user.id;
-
-                        // Only reset everything if it's actually a different user
                         if (newUid !== userId) {
                             setUserId(newUid);
-                            const { data: profile } = await supabase
-                                .from('profiles')
-                                .select('cart')
-                                .eq('id', newUid)
-                                .maybeSingle();
-                            if (profile?.cart) setCart(profile.cart as CartItem[]);
-                            fetchOrders();
-                            fetchNotifications(newUid);
-                        } else if (event === 'SIGNED_IN') {
-                            // Even if ID is same, if it was an explicit sign in, refresh
+                            const { data: profile } = await supabase.from('profiles').select('*').eq('id', newUid).maybeSingle();
+                            if (profile) {
+                                setUserProfile(profile);
+                                if (profile.cart) setCart(profile.cart as CartItem[]);
+                            }
                             fetchOrders();
                             fetchNotifications(newUid);
                         }
@@ -206,7 +217,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (isInitialized) {
             localStorage.setItem("wear_abbie_cart", JSON.stringify(cart));
             const syncCart = async () => {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await getSafeSession();
                 if (session?.user) {
                     await supabase.from('profiles').update({ cart }).eq('id', session.user.id);
                 }
@@ -288,7 +299,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await getSafeSession();
 
         // Generate dynamic tracking code
         const year = new Date().getFullYear();

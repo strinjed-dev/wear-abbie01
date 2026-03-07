@@ -41,6 +41,8 @@ export interface Order {
     payment_method?: string;
     payment_status?: string;
     rider_id?: string;
+    dispatch_name?: string;
+    dispatch_phone?: string;
     current_location?: string;
     stock_deducted?: boolean;
     date?: string;

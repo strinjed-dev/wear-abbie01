@@ -21,7 +21,7 @@ export default function AuthPage() {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                router.push('/dashboard');
+                router.replace('/dashboard');
             }
         };
         checkSession();
@@ -66,9 +66,9 @@ export default function AuthPage() {
                 if (error) throw error;
                 if (data.user && data.session) {
                     setIsSuccess(true);
-                    window.location.href = '/dashboard';
+                    router.push('/dashboard');
                 } else if (data.user) {
-                    window.location.href = '/dashboard';
+                    router.push('/dashboard');
                 }
             }
         } catch (error: any) {
@@ -125,9 +125,9 @@ export default function AuthPage() {
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/60">Wear Abbie Signature</span>
                     </div>
                     <h2 className="text-6xl md:text-7xl font-serif font-black text-white mb-8 tracking-tighter" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                        Your <br />
-                        <span className="text-[#D4AF37] italic font-light text-5xl md:text-6xl">Scent Journey</span> <br />
-                        Begins Here.
+                        Welcome <br />
+                        <span className="text-[#D4AF37] italic font-light text-5xl md:text-6xl">to Wear</span> <br />
+                        Abbie.
                     </h2>
                     <p className="text-white/40 text-lg font-medium leading-relaxed mb-12">Create an account to track your orders, save your favorite scents, and experience the full Wear Abbie service.</p>
 
@@ -176,7 +176,7 @@ export default function AuthPage() {
                             </div>
                             <div className="space-y-4">
                                 <h3 className="text-3xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>
-                                    {mode === 'forgot_password' ? 'Portal Reset Sent' : 'Registry Confirmed'}
+                                    {mode === 'forgot_password' ? 'Reset Link Sent' : 'Account Created'}
                                 </h3>
                                 <p className="text-zinc-500 font-medium leading-relaxed px-4">
                                     {mode === 'forgot_password'
@@ -309,7 +309,7 @@ export default function AuthPage() {
                     </div>
 
                     <div className="mt-16 pt-10 border-t border-zinc-50 text-center">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Fast & Resilient Authentication by Wear Abbie</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Secure Authentication by Wear Abbie</p>
                     </div>
                 </div>
             </div>

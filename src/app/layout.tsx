@@ -18,6 +18,7 @@ import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "@/components/layout/CartDrawer";
 import ToastNotification from "@/components/ui/ToastNotification";
 import NextTopLoader from 'nextjs-toploader';
+import NotificationHandler from "@/components/layout/NotificationHandler";
 
 export const metadata: Metadata = {
     title: "Wear Abbie | Luxury Fragrances",
@@ -41,10 +42,27 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className={`${outfit.variable} ${playfair.variable}`}>
+        <html lang="en" className={`${outfit.variable} ${playfair.variable}`} suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            try {
+                                const theme = localStorage.getItem('theme');
+                                if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                                    document.documentElement.classList.add('dark');
+                                } else {
+                                    document.documentElement.classList.remove('dark');
+                                }
+                            } catch (_) {}
+                        `,
+                    }}
+                />
+            </head>
             <body className="antialiased font-outfit">
                 <CartProvider>
                     <NextTopLoader color="#D4AF37" showSpinner={false} height={3} />
+                    <NotificationHandler />
                     {children}
                     <CartDrawer />
                     <ToastNotification />

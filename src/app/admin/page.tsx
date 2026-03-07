@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, Users, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag, Crown, Mail, MessageSquare } from 'lucide-react';
-import { uploadImage, supabase } from '@/lib/supabase';
+import { LayoutDashboard, Package, Users, User, Phone, MessageCircle, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag, Crown, Mail, MessageSquare, FileText } from 'lucide-react';
+import { uploadImage, supabase, getSafeSession } from '@/lib/supabase';
 import { useCart, Product, Order } from '@/context/CartContext';
 import { syncCatalogToSupabase } from '@/app/actions/migrateImages';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
@@ -35,6 +35,11 @@ export default function AdminDashboard() {
     const [giftingRequests, setGiftingRequests] = useState<any[]>([]);
     const [userOrdersView, setUserOrdersView] = useState<string | null>(null);
     const [searchOrdersQuery, setSearchOrdersQuery] = useState("");
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [dispatchName, setDispatchName] = useState("");
+    const [dispatchPhone, setDispatchPhone] = useState("");
+    const [adminUser, setAdminUser] = useState<any>(null);
+    const [savingSettings, setSavingSettings] = useState(false);
 
     const [newProduct, setNewProduct] = useState<any>({
         name: '',
@@ -46,19 +51,28 @@ export default function AdminDashboard() {
         stock: 0,
         image_url: '',
         is_active: true,
-        is_cod: true
+        is_cod: true,
+        original_price: ''
     });
 
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
     const REQUIRED_KEY = process.env.NEXT_PUBLIC_ADMIN_BOOTSTRAP_KEY || "WEAR_ABBIE_ADMIN_2026";
 
-    const handleAuth = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (bootstrapKey === REQUIRED_KEY) {
             setIsAuthorized(true);
             setAuthError(false);
             localStorage.setItem("wear_abbie_admin_authorized", "true");
+            const { data: { session } } = await getSafeSession();
+            if (session?.user?.id) {
+                // Ensure the database grants them admin RLS bypass
+                await supabase.from('profiles').update({ role: 'admin' }).eq('id', session.user.id);
+                // Update JWT metadata to pass RLS auth checks using auth.jwt()
+                await supabase.auth.updateUser({ data: { role: 'admin' } });
+            }
+            setRefreshTrigger(p => p + 1);
         } else {
             setAuthError(true);
         }
@@ -69,12 +83,15 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const { data: { session }, error } = await supabase.auth.getSession();
+            const { data: { session }, error } = await getSafeSession();
             if (error || !session) {
                 setAuthChecking(false);
-                window.location.href = '/auth'; // Require Supabase Session first
+                window.location.replace('/auth'); // Require Supabase Session first
                 return;
             }
+
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+            setAdminUser({ ...session.user, profile_data: profile || {} });
 
             // Set Developer info securely for Admin page display
             const jwt = session.access_token;
@@ -100,58 +117,50 @@ export default function AdminDashboard() {
     }, [isAuthorized, refreshTrigger]); // Fetch data when authorized or triggered by mutations
 
     const fetchInitialData = async () => {
+        if (!isAuthorized) return;
         setIsLoadingData(true);
         try {
-            // Fetch all orders with full info
-            const { data: ordersData } = await supabase
-                .from('orders')
-                .select('*, profiles(full_name, email)')
-                .order('created_at', { ascending: false });
-            if (ordersData) setAllOrders(ordersData);
+            // Ensure session is active and lock is available before firing multiple queries
+            // This prevents the common Navigator LockManager timeout in Supabase v2
+            const { data: { session }, error: sessionError } = await getSafeSession();
+            
+            if (sessionError || !session) {
+                console.error("Auth session not valid for data fetching", sessionError);
+                return;
+            }
 
-            // Fetch all users
-            const { data: profilesData } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
-            if (profilesData) setUsers(profilesData);
+            // Fire all primary fetches in parallel for maximum speed
+            const [
+                ordersRes,
+                profilesRes,
+                productsRes,
+                ridersRes,
+                supportRes,
+                requestsRes,
+                giftRes
+            ] = await Promise.all([
+                supabase.from('orders').select('*').order('created_at', { ascending: false }),
+                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+                supabase.from('products').select('*').order('name', { ascending: true }),
+                supabase.from('profiles').select('*').eq('role', 'rider'),
+                supabase.from('support_tickets').select('*, profiles(full_name, email)').order('created_at', { ascending: false }),
+                supabase.from('item_requests').select('*, profiles(full_name, email), products(name, image_url)').order('created_at', { ascending: false }),
+                supabase.from('gifting_requests').select('*, profiles(full_name, email)').order('created_at', { ascending: false })
+            ]);
 
-            // Fetch all products
-            const { data: productsData } = await supabase
-                .from('products')
-                .select('*')
-                .order('name', { ascending: true });
-            if (productsData) setProducts(productsData);
+            // Process results individually to handle partial failures
+            if (ordersRes.error) console.error('Orders fetch error:', ordersRes.error.message);
+            if (ordersRes.data) setAllOrders(ordersRes.data);
 
-            // Fetch all riders
-            const { data: ridersData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'rider');
-            if (ridersData) setRiders(ridersData);
+            if (profilesRes.data) setUsers(profilesRes.data);
+            if (productsRes.data) setProducts(productsRes.data);
+            if (ridersRes.data) setRiders(ridersRes.data);
+            if (supportRes.data) setSupportTickets(supportRes.data || []);
+            if (requestsRes.data) setItemRequests(requestsRes.data || []);
+            if (giftRes.data) setGiftingRequests(giftRes.data || []);
 
-            // Fetch support tickets
-            const { data: supportData } = await supabase
-                .from('support_tickets')
-                .select('*, profiles(full_name, email)')
-                .order('created_at', { ascending: false });
-            if (supportData) setSupportTickets(supportData || []);
-
-            // Fetch item requests
-            const { data: requestData } = await supabase
-                .from('item_requests')
-                .select('*, profiles(full_name, email), products(name, image_url)')
-                .order('created_at', { ascending: false });
-            if (requestData) setItemRequests(requestData || []);
-
-            // Fetch gifting requests
-            const { data: giftData } = await supabase
-                .from('gifting_requests')
-                .select('*, profiles(full_name, email)')
-                .order('created_at', { ascending: false });
-            if (giftData) setGiftingRequests(giftData || []);
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("Unexpected error in fetchInitialData:", error);
         } finally {
             setIsLoadingData(false);
         }
@@ -288,6 +297,11 @@ export default function AdminDashboard() {
 
     const addOrUpdateProduct = async () => {
         const payload = editingProduct || newProduct;
+
+        let cleanDesc = payload.description || '';
+        cleanDesc = cleanDesc.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
+        const finalDesc = payload.original_price ? `${cleanDesc}\n||ORIG_PRICE:${payload.original_price}||` : cleanDesc;
+
         const { error } = await supabase
             .from('products')
             .upsert({
@@ -297,7 +311,7 @@ export default function AdminDashboard() {
                 category: payload.category,
                 size: payload.size,
                 type: payload.type,
-                description: payload.description,
+                description: finalDesc,
                 image_url: url || payload.image_url, // Prefer new upload URL over payload
                 is_active: payload.is_active ?? true,
                 is_cod: payload.is_cod ?? true,
@@ -308,7 +322,7 @@ export default function AdminDashboard() {
         if (!error) {
             alert(editingProduct ? "Product updated!" : "New product launched!");
             setEditingProduct(null);
-            setNewProduct({ name: '', price: 0, category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true });
+            setNewProduct({ name: '', price: 0, category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true, original_price: '' });
             setUrl("");
             setRefreshTrigger((p: number) => p + 1);
         } else {
@@ -330,13 +344,35 @@ export default function AdminDashboard() {
     const assignRider = async (orderId: string, riderId: string) => {
         const { error } = await supabase
             .from('orders')
-            .update({ rider_id: riderId })
+            .update({ rider_id: riderId, dispatch_name: null, dispatch_phone: null })
             .eq('id', orderId);
 
         if (!error) {
             setRefreshTrigger((p: number) => p + 1);
         } else {
             alert("Assignment failed: " + error.message);
+        }
+    };
+
+    const updateManualDispatch = async (orderId: string) => {
+        if (!dispatchName) return alert("Please enter dispatch name");
+        const { error } = await supabase
+            .from('orders')
+            .update({ 
+                dispatch_name: dispatchName, 
+                dispatch_phone: dispatchPhone,
+                rider_id: null 
+            })
+            .eq('id', orderId);
+
+        if (!error) {
+            setUpdatingDispatch(null);
+            setDispatchName("");
+            setDispatchPhone("");
+            setRefreshTrigger((p: number) => p + 1);
+            alert("Dispatch info updated!");
+        } else {
+            alert("Failed to update dispatch: " + error.message);
         }
     };
 
@@ -594,7 +630,7 @@ export default function AdminDashboard() {
                 </nav>
 
                 <div className="mt-auto pt-10 border-t border-white/10 space-y-3">
-                    <SidebarItem icon={<Settings size={20} />} label="Settings" active={false} onClick={() => { }} />
+                    <SidebarItem icon={<Settings size={20} />} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsMenuOpen(false); }} />
                     <SidebarItem icon={<LogOut size={20} />} label="Sign Out" active={false} onClick={handleLogout} />
                 </div>
             </aside>
@@ -780,13 +816,13 @@ export default function AdminDashboard() {
                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, name: e.target.value }) : setNewProduct({ ...newProduct, name: e.target.value })}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Price (₦)</label>
                                             <input
                                                 type="number"
-                                                placeholder="25000"
-                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
+                                                placeholder="2500"
+                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-4 md:px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
                                                 value={editingProduct ? editingProduct.price : newProduct.price}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                     const val = parseFloat(e.target.value) || 0;
@@ -795,11 +831,24 @@ export default function AdminDashboard() {
                                             />
                                         </div>
                                         <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] block mb-2 px-2" title="Original price before discount">Discount Old Price (₦)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="e.g. 5000"
+                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-4 md:px-6 py-4 text-sm font-black text-[#D4AF37] outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
+                                                value={editingProduct ? (editingProduct.original_price || '') : (newProduct.original_price || '')}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const val = e.target.value;
+                                                    editingProduct ? setEditingProduct({ ...editingProduct, original_price: val }) : setNewProduct({ ...newProduct, original_price: val });
+                                                }}
+                                            />
+                                        </div>
+                                        <div>
                                             <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Stock Level</label>
                                             <input
                                                 type="number"
                                                 placeholder="50"
-                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
+                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-4 md:px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
                                                 value={editingProduct ? editingProduct.stock : newProduct.stock}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                     const val = parseInt(e.target.value) || 0;
@@ -816,11 +865,9 @@ export default function AdminDashboard() {
                                             value={editingProduct ? editingProduct.category : newProduct.category}
                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, category: e.target.value }) : setNewProduct({ ...newProduct, category: e.target.value })}
                                         >
-                                            <option>Fragrance</option>
-                                            <option>Boutique</option>
-                                            <option>Oil</option>
-                                            <option>Signature</option>
-                                            <option>Luxe</option>
+                                            {["Antiperspirant", "Roll on", "Car fragrance", "Home fragrance", "Scented candles", "Perfumes", "Perfume oil", "Body mist", "Body spray", "Fragrance", "Boutique", "Oil", "Signature", "Luxe"].map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
                                         </select>
                                     </div>
 
@@ -893,7 +940,7 @@ export default function AdminDashboard() {
                                             type="text"
                                             placeholder="Bergamot, Jasmine, Sandalwood..."
                                             className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all placeholder:text-zinc-200"
-                                            value={editingProduct ? editingProduct.fragrance_notes : newProduct.fragrance_notes}
+                                            value={(editingProduct ? editingProduct.fragrance_notes : newProduct.fragrance_notes) || ""}
                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => editingProduct ? setEditingProduct({ ...editingProduct, fragrance_notes: e.target.value }) : setNewProduct({ ...newProduct, fragrance_notes: e.target.value })}
                                         />
                                     </div>
@@ -977,7 +1024,12 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-zinc-50 md:border-transparent">
                                                 <button
-                                                    onClick={() => setEditingProduct(p)}
+                                                    onClick={() => {
+                                                        const match = p.description?.match(/\|\|ORIG_PRICE:(\d+)\|\|/);
+                                                        const orig = match ? match[1] : '';
+                                                        const clean = p.description?.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
+                                                        setEditingProduct({ ...p, original_price: orig, description: clean });
+                                                    }}
                                                     className="flex-1 md:flex-none p-3 bg-zinc-50 rounded-xl text-zinc-400 hover:text-zinc-900 transition-colors flex items-center justify-center"
                                                 >
                                                     <Edit3 size={18} />
@@ -1274,44 +1326,72 @@ export default function AdminDashboard() {
                                                 {/* Dispatch Management Area */}
                                                 {order.status !== 'pending' && (
                                                     <div className="pt-6 border-t border-zinc-50 space-y-4">
-                                                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                                                            <div className="w-full sm:w-1/2">
-                                                                <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block">Assigned Rider</label>
-                                                                <select
-                                                                    className="w-full bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-[#D4AF37]"
-                                                                    value={order.rider_id || ""}
-                                                                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => assignRider(order.id, e.target.value)}
-                                                                >
-                                                                    <option value="">Select Rider...</option>
-                                                                    {riders.map((r: any) => (
-                                                                        <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div className="w-full sm:w-1/2">
-                                                                <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block">Live Location Update</label>
-                                                                <div className="flex gap-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder={order.current_location || "e.g. Near Lagos Island"}
-                                                                        className="flex-1 bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                                                                        onFocus={() => {
-                                                                            setUpdatingDispatch(order.id);
-                                                                            setDispatchLocation(order.current_location || "");
-                                                                        }}
-                                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                                                            if (updatingDispatch === order.id) setDispatchLocation(e.target.value);
-                                                                        }}
-                                                                        value={updatingDispatch === order.id ? dispatchLocation : (order.current_location || "")}
-                                                                    />
-                                                                    {updatingDispatch === order.id && (
-                                                                        <button
-                                                                            onClick={() => updateOrderLocation(order.id, dispatchLocation)}
-                                                                            className="bg-[#D4AF37] text-white px-4 rounded-xl text-[9px] font-black uppercase"
+                                                        <div className="flex flex-col md:flex-row items-end gap-4 bg-zinc-50/50 p-6 rounded-[30px] border border-zinc-100">
+                                                            <div className="flex-1 space-y-4">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block tracking-widest px-2">Assigned Rider (Select)</label>
+                                                                        <select
+                                                                            className="w-full bg-white border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-black shadow-sm outline-none focus:border-[#D4AF37] transition-all"
+                                                                            value={order.rider_id || ""}
+                                                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => assignRider(order.id, e.target.value)}
                                                                         >
-                                                                            Save
-                                                                        </button>
-                                                                    )}
+                                                                            <option value="">Select Rider...</option>
+                                                                            {riders.map((r: any) => (
+                                                                                <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="relative group">
+                                                                        <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block tracking-widest px-2">Manual Dispatch Name</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            placeholder="e.g. John Courier"
+                                                                            className="w-full bg-white border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-black shadow-sm outline-none focus:border-[#D4AF37] transition-all"
+                                                                            value={updatingDispatch === order.id ? dispatchName : (order.dispatch_name || "")}
+                                                                            onFocus={() => {
+                                                                                setUpdatingDispatch(order.id);
+                                                                                setDispatchName(order.dispatch_name || "");
+                                                                                setDispatchPhone(order.dispatch_phone || "");
+                                                                            }}
+                                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDispatchName(e.target.value)}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block tracking-widest px-2">Dispatch Phone</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            placeholder="e.g. 08123456789"
+                                                                            className="w-full bg-white border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-black shadow-sm outline-none focus:border-[#D4AF37] transition-all"
+                                                                            value={updatingDispatch === order.id ? dispatchPhone : (order.dispatch_phone || "")}
+                                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDispatchPhone(e.target.value)}
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="text-[9px] font-black uppercase text-zinc-400 mb-2 block tracking-widest px-2">Current Location</label>
+                                                                        <div className="flex gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder={order.current_location || "e.g. Near Lagos Island"}
+                                                                                className="flex-1 bg-white border border-zinc-100 rounded-2xl px-5 py-4 text-xs font-black shadow-sm outline-none focus:border-[#D4AF37] transition-all"
+                                                                                value={updatingDispatch === order.id ? dispatchLocation : (order.current_location || "")}
+                                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDispatchLocation(e.target.value)}
+                                                                            />
+                                                                            {updatingDispatch === order.id && (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        if (dispatchLocation !== order.current_location) updateOrderLocation(order.id, dispatchLocation);
+                                                                                        if (dispatchName !== order.dispatch_name || dispatchPhone !== order.dispatch_phone) updateManualDispatch(order.id);
+                                                                                    }}
+                                                                                    className="bg-[#D4AF37] text-white px-6 rounded-2xl text-[9px] font-black uppercase hover:bg-black transition-all"
+                                                                                >
+                                                                                    Save
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1427,9 +1507,9 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-50">
-                                        {allOrders.filter(o => 
-                                            !searchOrdersQuery || 
-                                            o.profiles?.full_name?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) || 
+                                        {allOrders.filter(o =>
+                                            !searchOrdersQuery ||
+                                            o.profiles?.full_name?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.profiles?.email?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.contact_email?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.contact_phone?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
@@ -1489,30 +1569,35 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-8">
-                                                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2 rounded-full border shadow-sm inline-block min-w-[120px] text-center ${
-                                                        order.status === 'delivered' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2 rounded-full border shadow-sm inline-block min-w-[120px] text-center ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                         order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                        order.status === 'shipped' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                        'bg-zinc-100 text-zinc-400 border-zinc-100 opacity-60'
-                                                    }`}>
+                                                            order.status === 'shipped' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                'bg-zinc-100 text-zinc-400 border-zinc-100 opacity-60'
+                                                        }`}>
                                                         {order.status || 'PENDING'}
                                                     </span>
                                                 </td>
                                                 <td className="px-8 py-8 text-right">
                                                     <div className="flex items-center justify-end gap-3">
-                                                        <button 
-                                                            onClick={(e) => { 
+                                                        <button
+                                                            onClick={() => setSelectedOrder(order)}
+                                                            className="h-11 px-6 bg-zinc-50 text-zinc-900 border border-zinc-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setUpdatingDispatch(order.id);
-                                                                setActiveTab('tracking'); 
+                                                                setActiveTab('tracking');
                                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                                             }}
                                                             className="h-11 px-8 bg-zinc-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all shadow-xl shadow-black/10 hover:-translate-y-0.5"
                                                         >
                                                             Manage
                                                         </button>
-                                                        
-                                                        <a 
+
+                                                        <a
                                                             href={`https://wa.me/${(order.profiles?.phone || order.contact_phone || order.phone || '2348132484859').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${order.profiles?.full_name || 'Guest'}! I'm reaching out from Wear Abbie regarding your order ${order.tracking_code || order.id.substring(0, 8)}. Do let me know if you need assistance.`)}`}
                                                             target="_blank"
                                                             rel="noreferrer"
@@ -1521,8 +1606,8 @@ export default function AdminDashboard() {
                                                         >
                                                             <MessageSquare size={16} />
                                                         </a>
-                                                        
-                                                        <button 
+
+                                                        <button
                                                             onClick={() => {
                                                                 const text = `Order: ${order.tracking_code}\nItems: ${order.items?.map((i: any) => `${i.name} x${i.quantity}`).join(', ')}\nTotal: ₦${(order.total_amount || order.total).toLocaleString()}\nMethod: ${order.payment_method}`;
                                                                 navigator.clipboard.writeText(text);
@@ -1717,8 +1802,244 @@ export default function AdminDashboard() {
                         </div>
                     )
                 }
-            </main >
-        </div >
+
+                {
+                    activeTab === 'settings' && adminUser && (
+                        <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-zinc-100 min-h-[500px]">
+                            <h3 className="text-2xl font-serif font-black mb-2 flex items-center gap-3" style={{ fontFamily: 'var(--font-playfair), serif' }}>
+                                <Settings className="w-6 h-6 text-[#D4AF37]" /> Administrator Preferences
+                            </h3>
+                            <p className="text-zinc-500 text-sm font-medium mb-10">Manage your administrative contact and personal details.</p>
+
+                            <form className="space-y-6 max-w-2xl" onSubmit={async (e) => {
+                                e.preventDefault();
+                                setSavingSettings(true);
+                                const form = e.target as HTMLFormElement;
+                                const fullName = (form.elements.namedItem('fullName') as HTMLInputElement).value;
+                                const phone = (form.elements.namedItem('phone') as HTMLInputElement).value;
+                                const address = (form.elements.namedItem('address') as HTMLTextAreaElement).value;
+                                const theme = (form.elements.namedItem('theme') as HTMLSelectElement).value;
+
+                                if (adminUser?.id) {
+                                    try {
+                                        const updateFields: any = {
+                                            full_name: fullName,
+                                            phone: phone,
+                                            address: address, // Default attempt with 'address'
+                                            location: address // Also set 'location' for compatibility
+                                        };
+
+                                        let { error } = await supabase.from('profiles').update(updateFields).eq('id', adminUser.id);
+
+                                        // If 'address' column is missing, retry without it (only using 'location')
+                                        if (error && error.message.includes('column "address"')) {
+                                            console.warn("Retrying profile update without 'address' column...");
+                                            delete updateFields.address;
+                                            const retry = await supabase.from('profiles').update(updateFields).eq('id', adminUser.id);
+                                            error = retry.error;
+                                        }
+
+                                        if (!error) {
+                                            // Update user metadata for theme
+                                            await supabase.auth.updateUser({
+                                                data: { theme_preference: theme }
+                                            });
+                                            
+                                            // Update local state to reflect changes immediately
+                                            setAdminUser((prev: any) => ({
+                                                ...prev,
+                                                profile_data: {
+                                                    ...(prev?.profile_data || {}),
+                                                    full_name: fullName,
+                                                    phone: phone,
+                                                    address: address,
+                                                    location: address
+                                                },
+                                                user_metadata: {
+                                                    ...(prev?.user_metadata || {}),
+                                                    theme_preference: theme
+                                                }
+                                            }));
+
+                                            // Trigger a local storage / DOM update for theme
+                                            if (theme === 'dark') {
+                                                document.documentElement.classList.add('dark');
+                                                localStorage.setItem('theme', 'dark');
+                                            } else if (theme === 'light') {
+                                                document.documentElement.classList.remove('dark');
+                                                localStorage.setItem('theme', 'light');
+                                            } else {
+                                                localStorage.removeItem('theme');
+                                                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                                                    document.documentElement.classList.add('dark');
+                                                } else {
+                                                    document.documentElement.classList.remove('dark');
+                                                }
+                                            }
+
+                                            alert("Admin settings updated successfully. Reloading to apply theme...");
+                                            window.location.reload();
+                                        } else {
+                                            alert("Failed to save settings: " + error.message);
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("An unexpected error occurred.");
+                                    }
+                                }
+                                setSavingSettings(false);
+                            }}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
+                                        <input defaultValue={adminUser?.profile_data?.full_name || adminUser?.user_metadata?.full_name} name="fullName" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="Admin Name" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Email (Read Only)</label>
+                                        <input defaultValue={adminUser?.email} disabled type="email" className="w-full bg-zinc-100 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium text-zinc-400 cursor-not-allowed" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Phone Number</label>
+                                    <input defaultValue={adminUser?.profile_data?.phone || ""} name="phone" type="text" className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900" placeholder="+234 XXX XXXX" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Contact Address</label>
+                                    <textarea defaultValue={adminUser?.profile_data?.address || ""} name="address" rows={3} className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition-all text-zinc-900 resize-none" placeholder="HQ Address"></textarea>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1">Theme Preference</label>
+                                    <select name="theme" defaultValue={adminUser?.user_metadata?.theme_preference || "system"} className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white dark:focus:bg-zinc-900 transition-all text-zinc-900 dark:text-white">
+                                        <option value="system">System Default</option>
+                                        <option value="light">Light Mode</option>
+                                        <option value="dark">Dark Mode</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+                                    <button disabled={savingSettings} type="submit" className="w-full sm:w-auto bg-[#D4AF37] text-black py-5 px-10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-xl shadow-[#D4AF37]/20 disabled:opacity-50 flex items-center justify-center gap-3">
+                                        {savingSettings ? "Saving Settings..." : "Save Admin Settings"}
+                                        {!savingSettings && <ShieldCheck className="w-4 h-4" />}
+                                    </button>
+                                    {savingSettings && (
+                                        <span className="text-[10px] font-bold text-[#D4AF37] animate-pulse uppercase tracking-widest">Applying registry changes...</span>
+                                    )}
+                                </div>
+                            </form>
+                        </div>
+                    )
+                }
+            </main>
+
+            {/* --- Order Manifest Modal --- */}
+            {selectedOrder && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in">
+                    <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden relative border border-zinc-100">
+                        {/* Header */}
+                        <div className="p-8 md:p-12 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
+                            <div>
+                                <h3 className="text-2xl font-serif font-black tracking-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>Order Manifest</h3>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37] mt-1">{selectedOrder.tracking_code || "REF: " + selectedOrder.id.substring(0, 8).toUpperCase()}</p>
+                            </div>
+                            <button onClick={() => setSelectedOrder(null)} className="h-12 w-12 rounded-full bg-white flex items-center justify-center hover:bg-black hover:text-white transition-all shadow-sm border border-zinc-100">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body - Scrollable */}
+                        <div className="p-8 md:p-12 max-h-[60vh] overflow-y-auto no-scrollbar space-y-10">
+                            {/* Customer Identity */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><User size={12} /> Customer Identity</p>
+                                <div className="bg-zinc-50 p-6 rounded-[24px] border border-zinc-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                    <div>
+                                        <p className="text-lg font-black">{selectedOrder.profiles?.full_name || 'Guest Member'}</p>
+                                        <p className="text-xs font-bold text-zinc-400 truncate max-w-[200px]">{selectedOrder.contact_email || selectedOrder.profiles?.email || 'N/A'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <a 
+                                            href={`tel:${selectedOrder.contact_phone || selectedOrder.profiles?.phone || ''}`} 
+                                            className="h-10 px-6 bg-[#3E2723] text-white rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all"
+                                        >
+                                            <Phone size={12} /> Call Now
+                                        </a>
+                                        <a 
+                                           href={`https://wa.me/${(selectedOrder.contact_phone || selectedOrder.profiles?.phone || '2348132484859').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedOrder.profiles?.full_name || 'Guest'}! I'm reaching out from Wear Abbie regarding your order ${selectedOrder.tracking_code || (selectedOrder.id && selectedOrder.id.substring(0, 8).toUpperCase())}.`)}`}
+                                           target="_blank" rel="noreferrer"
+                                           className="h-10 w-10 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all"
+                                        >
+                                            <MessageCircle size={16} />
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Deployment Location */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><Truck size={12} /> Deployment Location</p>
+                                <div className="bg-zinc-50 p-6 rounded-[24px] border border-zinc-100">
+                                    <p className="text-xs font-bold text-zinc-800 leading-relaxed font-mono">
+                                        {selectedOrder.shipping_address || selectedOrder.profiles?.address || selectedOrder.profiles?.location || 'Standard Shipping Registry'}<br />
+                                        {selectedOrder.shipping_area || ''}, {selectedOrder.shipping_state || ''}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Item Manifest */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><ShoppingBag size={12} /> Item Manifest</p>
+                                <div className="space-y-3">
+                                    {selectedOrder.items?.map((item: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between p-4 bg-white border border-zinc-100 rounded-2xl">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-zinc-50 rounded-xl p-1.5 flex items-center justify-center">
+                                                    <img src={item.image || item.image_url || '/logo.png'} className="max-w-full max-h-full object-contain" alt="" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-zinc-900">{item.name}</p>
+                                                    <p className="text-[9px] font-bold text-zinc-400 uppercase">Qty: {item.quantity}</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs font-black">₦{((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Dispatch Information */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><Database size={12} /> Dispatch Information</p>
+                                <div className="bg-zinc-50 p-6 rounded-[24px] border border-zinc-100 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-1">Status</p>
+                                        <span className="text-[10px] font-black uppercase text-[#D4AF37]">{selectedOrder.status}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-1">Rider / Personnel</p>
+                                        <p className="text-[10px] font-black">{selectedOrder.dispatch_name || 'System Dispatch'}</p>
+                                        {selectedOrder.dispatch_phone && <p className="text-[8px] text-zinc-400 font-bold">{selectedOrder.dispatch_phone}</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-8 md:p-12 bg-zinc-900 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="text-center md:text-left">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Registry Value</p>
+                                <p className="text-3xl font-serif font-black text-white" style={{ fontFamily: 'var(--font-playfair), serif' }}>₦{(Number(selectedOrder.total_amount || selectedOrder.total) || 0).toLocaleString()}</p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedOrder(null)}
+                                className="w-full md:w-auto px-12 py-5 bg-[#D4AF37] text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all shadow-xl shadow-[#D4AF37]/10"
+                            >
+                                Close Manifest
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 

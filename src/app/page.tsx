@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, User, Menu, MessageCircle, ArrowRight, SlidersHorizontal, Trash2, Plus, Minus, X, Trash, ShieldCheck, LayoutDashboard, Truck, CreditCard, Package } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, MessageCircle, ArrowRight, SlidersHorizontal, Trash2, Plus, Minus, X, Trash, ShieldCheck, Truck, CreditCard, Package } from 'lucide-react';
 import productsData from '@/data/products.json';
 import { useCart, Product, CartItem } from '@/context/CartContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, getSafeSession } from '@/lib/supabase';
 import MotionGraphics from '@/components/MotionGraphics';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -17,74 +17,96 @@ import MemberNavbar from '@/components/layout/MemberNavbar';
 export default function Home() {
     const { cart, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, searchQuery, setSearchQuery } = useCart();
     const [isImageExpanded, setIsImageExpanded] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
     const router = useRouter();
 
     useEffect(() => {
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                router.push('/dashboard');
-            } else {
-                setIsLoggedIn(false);
+        const checkUserAndFetch = async () => {
+            try {
+                // Parallel check for performance
+                const sessionPromise = getSafeSession();
+                const productsPromise = supabase
+                    .from('products')
+                    .select('*')
+                    .eq('is_active', true)
+                    .limit(8);
+
+                const [{ data: { session } }, { data: dbProducts }] = await Promise.all([sessionPromise, productsPromise]);
+
+                if (session) {
+                    setIsRedirecting(true);
+                    window.location.href = '/dashboard';
+                    return;
+                }
+
+                if (dbProducts) {
+                    const mappedProducts: Product[] = dbProducts.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        brand: p.brand,
+                        price: p.price,
+                        category: p.category,
+                        image: p.image_url || p.image || '/logo.png',
+                        inStock: p.stock > 0,
+                        isCOD: p.is_cod,
+                        description: p.description
+                    }));
+                    setProducts(mappedProducts);
+                }
+            } catch (err) {
+                console.error("Home initialization error:", err);
+            } finally {
+                setLoading(false);
             }
         };
-        checkUser();
-
-        const fetchProducts = async () => {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .eq('is_active', true)
-                .limit(8);
-
-            if (!error && data) {
-                const mappedProducts: Product[] = data.map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    price: p.price,
-                    category: p.category,
-                    image: p.image_url || p.image || '/logo.png',
-                    inStock: p.stock > 0,
-                    isCOD: p.is_cod,
-                    description: p.description
-                }));
-                setProducts(mappedProducts);
-            } else {
-                setProducts((productsData as Product[]).slice(0, 8).map(p => ({ ...p, inStock: p.inStock ?? true })));
-            }
-            setLoading(false);
-        };
-        fetchProducts();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-            setIsLoggedIn(!!session);
-        });
+        checkUserAndFetch();
+        // Removed buggy onAuthStateChange active redirect here to prevent infinite loading traps
 
         const channel = supabase
-            .channel('homepage-products')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' }, (payload: any) => {
-                setProducts((current: Product[]) =>
-                    current.map((p: Product) => p.id === payload.new.id ? {
-                        ...p,
+            .channel('homepage-products-global')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload: any) => {
+                if (payload.eventType === 'INSERT') {
+                    const newProduct: Product = {
+                        id: payload.new.id,
+                        name: payload.new.name,
+                        brand: payload.new.brand,
+                        price: payload.new.price,
+                        category: payload.new.category,
+                        image: payload.new.image_url || payload.new.image || '/logo.png',
                         inStock: payload.new.stock > 0,
-                        price: payload.new.price
-                    } : p)
-                );
+                        isCOD: payload.new.is_cod,
+                        description: payload.new.description
+                    };
+                    setProducts((current: Product[]) => [newProduct, ...current].slice(0, 8));
+                } else if (payload.eventType === 'UPDATE') {
+                    setProducts((current: Product[]) =>
+                        current.map((p: Product) => p.id === payload.new.id ? {
+                            ...p,
+                            name: payload.new.name,
+                            price: payload.new.price,
+                            category: payload.new.category,
+                            image: payload.new.image_url || payload.new.image || p.image,
+                            inStock: payload.new.stock > 0,
+                            isCOD: payload.new.is_cod,
+                            description: payload.new.description
+                        } : p)
+                    );
+                } else if (payload.eventType === 'DELETE') {
+                    setProducts((current: Product[]) => current.filter((p: Product) => p.id !== payload.old.id));
+                }
             })
             .subscribe();
 
         return () => {
-            subscription.unsubscribe();
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [router]);
 
     // Featured products
-    const featuredProducts = products.length > 0 ? products.slice(0, 4) : (productsData as Product[]).slice(0, 4).map(p => ({ ...p, inStock: p.inStock ?? true }));
+    const featuredProducts = products.slice(0, 4);
 
     const cartCount = cart.reduce((acc: number, item: CartItem) => acc + item.quantity, 0);
     const cartTotal = cart.reduce((acc: number, item: CartItem) => acc + (item.price * item.quantity), 0);
@@ -164,15 +186,9 @@ export default function Home() {
                                 <Link href="/shop" className="bg-[#3E2723] text-white rounded-full px-10 py-5 font-black uppercase tracking-widest text-[11px] hover:bg-black transform hover:-translate-y-1 transition-all shadow-xl flex items-center justify-center gap-3">
                                     Browse Shop <ArrowRight className="w-4 h-4" />
                                 </Link>
-                                {isLoggedIn ? (
-                                    <Link href="/dashboard" className="bg-[#D4AF37] text-white rounded-full px-10 py-5 font-black uppercase tracking-widest text-[11px] hover:bg-[#3E2723] transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#D4AF37]/20">
-                                        My Account <LayoutDashboard className="w-4 h-4" />
-                                    </Link>
-                                ) : (
-                                    <button className="bg-white border border-zinc-200 text-zinc-800 rounded-full px-10 py-5 font-black uppercase tracking-widest text-[11px] hover:border-[#D4AF37] transition-all flex items-center justify-center">
-                                        Best Sellers
-                                    </button>
-                                )}
+                                <Link href="/auth" className="bg-white border border-zinc-200 text-zinc-800 rounded-full px-10 py-5 font-black uppercase tracking-widest text-[11px] hover:border-[#D4AF37] transition-all flex items-center justify-center gap-3">
+                                    Sign In <User className="w-4 h-4" />
+                                </Link>
                             </div>
 
                             {/* Freestyle Motion Graphics Section */}

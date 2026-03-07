@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, Search, User, X, LogOut, LayoutDashboard, Bell, Store, ShieldCheck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, getSafeSession } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import NotificationBell from "@/components/ui/NotificationBell";
@@ -37,7 +37,7 @@ export default function MemberNavbar() {
 
     useEffect(() => {
         const getUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await getSafeSession();
             setUserData(session?.user || null);
             if (session?.user) {
                 // Fetch user role for specialized dashboard links
@@ -192,15 +192,23 @@ export default function MemberNavbar() {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.05 }}
                                     >
-                                        <Link
+                                        <a
                                             href={item.href}
-                                            onClick={() => setIsOpen(false)}
+                                            onClick={(e) => {
+                                              if (item.href === "/shop" || item.href === "/dashboard") {
+                                                // Let native link handle
+                                              } else {
+                                                e.preventDefault();
+                                                router.push(item.href);
+                                              }
+                                              setIsOpen(false);
+                                            }}
                                             className={`block py-4 px-4 rounded-2xl transition-all text-sm font-bold flex items-center justify-between group
                         ${pathname === item.href ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : 'hover:bg-neutral-50 text-neutral-700'}`}
                                         >
                                             {item.label}
                                             <div className={`w-1.5 h-1.5 rounded-full bg-[#D4AF37] transition-all opacity-0 group-hover:opacity-100 ${pathname === item.href ? 'opacity-100 scale-125' : ''}`} />
-                                        </Link>
+                                        </a>
                                     </motion.div>
                                 ))}
 

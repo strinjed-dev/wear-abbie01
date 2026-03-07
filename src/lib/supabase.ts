@@ -5,6 +5,19 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
+// LockManager Fix: Cache session fetching for 500ms to prevent parallel requests stalling on locks
+let sessionCache: Promise<any> | null = null;
+export const getSafeSession = async () => {
+    if (sessionCache) return sessionCache;
+    
+    sessionCache = supabase.auth.getSession();
+    const result = await sessionCache;
+    
+    // Clear cache after a short delay so subsequent user actions still get fresh data
+    setTimeout(() => { sessionCache = null; }, 500);
+    return result;
+};
+
 // Auth helpers
 export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
@@ -12,6 +25,7 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOut = async () => {
+    sessionCache = null; // Flush cache on signout
     const { error } = await supabase.auth.signOut();
     return { error };
 };

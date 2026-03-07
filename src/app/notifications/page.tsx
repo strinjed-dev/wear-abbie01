@@ -142,10 +142,10 @@ export default function NotificationsPage() {
                                             )}
                                             {n.order_id && (
                                                 <Link
-                                                    href={`/tracking?id=${n.order_id}`}
+                                                    href={isAdmin ? `/admin` : `/dashboard`}
                                                     className="text-[9px] font-black uppercase tracking-widest text-zinc-900 underline decoration-[#D4AF37] underline-offset-4 hover:text-[#D4AF37] transition-colors"
                                                 >
-                                                    Track Order
+                                                    {isAdmin ? 'View in Admin' : 'View Order'}
                                                 </Link>
                                             )}
                                             <button

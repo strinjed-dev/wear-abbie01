@@ -260,16 +260,32 @@ export default function ProductDetailPage() {
                                 </div>
                             </div>
                             <h1 className="text-4xl md:text-7xl font-serif font-black mb-6 tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-playfair), serif' }}>{product.name}</h1>
-                            <div className="flex items-baseline gap-4">
+                            <div className="flex items-center gap-6">
                                 <p className="text-3xl md:text-5xl font-black">₦{product.price.toLocaleString()}</p>
-                                <p className="text-zinc-400 font-bold text-sm uppercase tracking-widest">Tax Included</p>
+                                {(() => {
+                                    const match = product.description?.match(/\|\|ORIG_PRICE:(\d+)\|\|/);
+                                    if (match) {
+                                        const originalPrice = parseInt(match[1]);
+                                        const discountPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+                                        return (
+                                            <div className="flex items-center gap-3">
+                                                <p className="text-lg md:text-2xl text-zinc-400 line-through font-bold">₦{originalPrice.toLocaleString()}</p>
+                                                <span className="bg-zinc-900 text-[#D4AF37] px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest animate-pulse">Save {discountPercent}%</span>
+                                            </div>
+                                        );
+                                    }
+                                    return <p className="text-zinc-400 font-bold text-sm uppercase tracking-widest">Tax Included</p>;
+                                })()}
                             </div>
                         </header>
 
                         <div className="p-8 bg-zinc-50 rounded-[40px] border border-zinc-100">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4">Olfactory Narrative</h3>
                             <p className="text-zinc-500 font-medium leading-relaxed text-lg italic">
-                                "{product.description || "A masterfully curated scent designed to leave a lasting impression. Experience the craftsmanship of Wear Abbie's collection."}"
+                                "{(() => {
+                                    const raw = product.description || "A masterfully curated scent designed to leave a lasting impression. Experience the craftsmanship of Wear Abbie's collection.";
+                                    return raw.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
+                                })()}"
                             </p>
                         </div>
 
