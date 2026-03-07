@@ -26,7 +26,7 @@ export default function ProductDetailPage() {
     useEffect(() => {
         const fetchProduct = async () => {
             // First check local data for instant load
-            const localProduct = productsData.find(p => p.id === id);
+            const localProduct = productsData.find(p => p.id === id) as any;
             if (localProduct) {
                 setProduct({
                     ...localProduct,

@@ -2,7 +2,7 @@
 
 import { supabase } from './supabase';
 
-const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/1726/1726-preview.mp3'; // More premium double-chime for luxury feel
 
 export class NotificationManager {
     private static audio: HTMLAudioElement | null = null;
