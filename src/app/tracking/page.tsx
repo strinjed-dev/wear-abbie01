@@ -70,7 +70,7 @@ export default function TrackingPage() {
                         .limit(1);
                     
                     if (partialData && partialData.length > 0) {
-                        setTrackData(partialData[0] as OrderData);
+                        setTrackData(partialData[0] as Order);
                         return;
                     }
                 }

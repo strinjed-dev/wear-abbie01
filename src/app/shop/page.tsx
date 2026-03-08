@@ -290,7 +290,7 @@ function ShopContent() {
                                             <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">{p.category}</span>
                                             {p.size && <span className="text-[7px] md:text-[9px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded-md">{p.size}</span>}
                                         </div>
-                                        <h3 className="text-xs md:text-lg font-serif font-bold md:h-14 line-clamp-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>{p.name}</h3>
+                                        <h3 className="text-xs md:text-lg font-serif font-black md:h-14 line-clamp-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>{p.name}</h3>
                                         <div className="mt-auto pt-2 md:pt-4 flex items-center justify-between">
                                             <div>
                                                 <p className="text-[7px] md:text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Price</p>

@@ -1139,7 +1139,7 @@ export default function AdminDashboard() {
                                                     <img src={product.image_url || (product as { image?: string }).image || '/logo.png'} alt={product.name} className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${isOutOfStock ? 'opacity-40 grayscale' : ''}`} />
                                                     
                                                     {hasDiscount && !isOutOfStock && (
-                                                        <div className="absolute top-4 left-4 bg-red-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg z-10">
+                                                        <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-red-500 text-white text-[7px] md:text-[9px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full shadow-lg z-10 animate-pulse">
                                                             -{discountPercent}% OFF
                                                         </div>
                                                     )}
@@ -1160,7 +1160,7 @@ export default function AdminDashboard() {
                                                     
                                                     <div className="mt-auto pt-4 flex items-center justify-between border-t border-zinc-50">
                                                         <div>
-                                                            <p className="text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Registry Price</p>
+                                                            <p className="text-[7px] md:text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Registry Price</p>
                                                             <div className="flex items-center gap-3">
                                                                 <p className={`text-xl font-black ${isOutOfStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{parseFloat((product.price ?? 0).toString()).toLocaleString()}</p>
                                                                 {hasDiscount && !isOutOfStock && (

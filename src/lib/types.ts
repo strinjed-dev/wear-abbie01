@@ -24,7 +24,7 @@ export interface Order {
     status: string;
     total: number;
     total_amount?: number; // Standard SQL field
-    items: any[];
+    items: OrderItem[];
     customer?: {
         state: string;
         area: string;
@@ -55,7 +55,6 @@ export interface Order {
     stock_deducted?: boolean;
     date?: string;
     created_at?: string;
-    items?: OrderItem[];
 }
 
 export interface OrderItem {
