@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Clock, Truck, ArrowRight, Copy, Check, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useCart } from '@/context/CartContext';
 
 export default function OrderSuccessPage() {
     const [orderId, setOrderId] = useState('');
@@ -11,23 +12,36 @@ export default function OrderSuccessPage() {
     const [paymentMethod, setPaymentMethod] = useState<string>('');
     const [paymentVerified, setPaymentVerified] = useState(false);
 
+    const { finalizeOrder } = useCart();
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const ref = params.get('ref') || params.get('reference');
         const saved = sessionStorage.getItem('wear_abbie_last_order_id');
         const method = sessionStorage.getItem('wear_abbie_payment_method') || '';
+        const draft = sessionStorage.getItem('wear_abbie_draft_order');
         setPaymentMethod(method);
 
         let trackingCode = '';
         if (ref) {
             trackingCode = ref;
-            // Paystack callback = payment verified
             setPaymentVerified(true);
-            // Update payment status in DB
-            supabase.from('orders').update({ payment_status: 'paid' }).eq('tracking_code', ref).then(() => { });
+            
+            if (draft) {
+                try {
+                    const draftData = JSON.parse(draft);
+                    finalizeOrder({ ...draftData, payment_status: 'paid' }).then(() => {
+                        sessionStorage.removeItem('wear_abbie_draft_order');
+                    });
+                } catch (e) {
+                    console.error("Failed to parse draft order:", e);
+                }
+            } else {
+                // Secondary check: update status if order was already in DB
+                supabase.from('orders').update({ payment_status: 'paid' }).eq('tracking_code', ref).then(() => { });
+            }
         } else if (saved) {
             trackingCode = saved;
-            // PalmPay = pending verification
             setPaymentVerified(method === 'paystack');
         } else {
             trackingCode = `WA-${Math.floor(Math.random() * 900000 + 100000)}`;

@@ -3,6 +3,7 @@ export interface Product {
     name: string;
     brand?: string;
     price: number;
+    original_price?: number; // Original price before discount
     category: string;
     image: string;
     image_url?: string; // Standard SQL field
@@ -54,6 +55,16 @@ export interface Order {
     stock_deducted?: boolean;
     date?: string;
     created_at?: string;
+    items?: OrderItem[];
+}
+
+export interface OrderItem {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image?: string;
+    image_url?: string;
 }
 
 export interface Notification {
@@ -69,4 +80,16 @@ export interface Notification {
 
 export interface CartItem extends Product {
     quantity: number;
+}
+
+export interface Profile {
+    id: string;
+    full_name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    role?: 'user' | 'admin' | 'rider';
+    is_premium?: boolean;
+    created_at: string;
+    cart?: any[];
 }

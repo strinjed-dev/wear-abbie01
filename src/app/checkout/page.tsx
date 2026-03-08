@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, ChevronLeft, CreditCard, Truck, ShieldCheck, ArrowRight, X, Heart, MapPin, Phone, Mail, User } from 'lucide-react';
 
+import Link from 'next/link';
 import { useCart, CartItem } from '@/context/CartContext';
 import { supabase, getSafeSession } from '@/lib/supabase';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
@@ -40,22 +41,30 @@ export default function CheckoutPage() {
     const total = cart.reduce((add: number, item: CartItem) => add + (item.price * item.quantity), 0);
     const logistics = getDeliveryCost(customer.state, customer.area);
 
-    const initiatePaystack = (orderInfo: { email: string; total: number; tracking_code: string }) => {
+    const initiatePaystack = (orderInfo: { email: string; total: number; tracking_code: string; name: string }) => {
         // @ts-ignore
         const handler = window.PaystackPop.setup({
-            key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_placeholder', // User needs to set this
+            key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || 'pk_test_placeholder',
             email: orderInfo.email,
-            amount: Math.round(orderInfo.total * 100), // In kobo
+            amount: Math.round(orderInfo.total * 100),
             currency: "NGN",
             ref: orderInfo.tracking_code,
+            metadata: {
+                custom_fields: [
+                    {
+                        display_name: "Customer Name",
+                        variable_name: "customer_name",
+                        value: orderInfo.name
+                    }
+                ]
+            },
             callback: (response: any) => {
-                // On success: redirect to success page
                 console.log("Paystack success:", response);
                 window.location.href = `/order-success?ref=${response.reference}`;
             },
             onClose: () => {
                 setIsLoading(false);
-                alert('Payment cancelled. Your order is saved but pending payment.');
+                alert('Payment window closed. Your tracking code is: ' + orderInfo.tracking_code);
             }
         });
         handler.openIframe();
@@ -65,6 +74,28 @@ export default function CheckoutPage() {
         e.preventDefault();
         setIsLoading(true);
         try {
+            if (paymentMethod === 'paystack') {
+                const result = await placeOrder({
+                    ...customer,
+                    shipping_fee: logistics,
+                    payment_method: paymentMethod,
+                }, { draftOnly: true });
+
+                if (result?.orderData) {
+                    sessionStorage.setItem('wear_abbie_draft_order', JSON.stringify(result.orderData));
+                    if (result.tracking_code) sessionStorage.setItem('wear_abbie_last_order_id', result.tracking_code);
+                }
+                sessionStorage.setItem('wear_abbie_payment_method', paymentMethod);
+
+                initiatePaystack({
+                    email: customer.email,
+                    total: result.total || (total + logistics),
+                    tracking_code: result.tracking_code || `WA-${Date.now()}`,
+                    name: `${customer.firstName} ${customer.lastName}`.trim() || 'Valued Customer'
+                });
+                return;
+            }
+
             const result = await placeOrder({
                 ...customer,
                 shipping_fee: logistics,
@@ -78,7 +109,7 @@ export default function CheckoutPage() {
             sessionStorage.setItem('wear_abbie_payment_method', paymentMethod);
 
             if (paymentMethod === 'palmpay') {
-                // For PalmPay: open WhatsApp with tracking code (NOT "payment success")
+                // For PalmPay: open WhatsApp with tracking code (MANUAL verification)
                 const grandTotal = total + logistics;
                 const waMsg = encodeURIComponent(
                     `Hello Wear Abbie! I just placed an order.\n\n` +
@@ -91,17 +122,10 @@ export default function CheckoutPage() {
                 const waUrl = `https://wa.me/2348132484859?text=${waMsg}`;
                 window.open(waUrl, '_blank');
 
-                // Redirect to pending page (NOT success)
                 setTimeout(() => {
                     setIsLoading(false);
                     window.location.href = '/order-success';
                 }, 2000);
-            } else if (paymentMethod === 'paystack') {
-                initiatePaystack({
-                    email: customer.email,
-                    total: result.total || (total + logistics),
-                    tracking_code: result.tracking_code || `WA-${Date.now()}`
-                });
             } else {
                 // Fallback (e.g. COD if ever enabled)
                 setTimeout(() => {
@@ -359,7 +383,7 @@ export default function CheckoutPage() {
                                 ) : cart.length === 0 ? (
                                     <p className="text-zinc-500 font-medium text-xs">Your Boutique Bag is empty.</p>
                                 ) : (
-                                    cart.map((item, idx) => (
+                                    cart.map((item: CartItem, idx: number) => (
                                         <div key={idx} className="flex gap-6 items-center">
                                             <div className="w-20 h-20 bg-white rounded-2xl border border-zinc-100 p-2 flex items-center justify-center">
                                                 <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />

@@ -28,11 +28,15 @@ export default function UserShoppingDashboard() {
                     id: p.id,
                     name: p.name,
                     price: p.price,
+                    original_price: p.original_price || null,
                     category: p.category,
                     image: p.image_url || p.image || '/logo.png',
                     inStock: p.stock > 0,
+                    stock: p.stock,
                     isCOD: p.is_cod,
-                    description: p.description
+                    description: p.description,
+                    size: p.size || '',
+                    type: p.type || '',
                 }));
                 setProducts(mappedProducts);
             } else {
@@ -55,11 +59,15 @@ export default function UserShoppingDashboard() {
                             id: payload.new.id,
                             name: payload.new.name,
                             price: payload.new.price,
+                            original_price: payload.new.original_price || null,
                             category: payload.new.category,
                             image: payload.new.image_url || payload.new.image || '/logo.png',
                             inStock: payload.new.stock > 0,
+                            stock: payload.new.stock,
                             isCOD: payload.new.is_cod,
-                            description: payload.new.description
+                            description: payload.new.description,
+                            size: payload.new.size || '',
+                            type: payload.new.type || '',
                         };
                         setProducts((current: Product[]) => [newProduct, ...current]);
                     } else if (payload.eventType === 'UPDATE') {
@@ -68,11 +76,15 @@ export default function UserShoppingDashboard() {
                                 ...p,
                                 name: payload.new.name,
                                 price: payload.new.price,
+                                original_price: payload.new.original_price || null,
                                 category: payload.new.category,
                                 image: payload.new.image_url || payload.new.image || p.image,
                                 inStock: payload.new.stock > 0,
+                                stock: payload.new.stock,
                                 isCOD: payload.new.is_cod,
-                                description: payload.new.description
+                                description: payload.new.description,
+                                size: payload.new.size || '',
+                                type: payload.new.type || '',
                             } : p)
                         );
                     } else if (payload.eventType === 'DELETE') {
@@ -87,9 +99,9 @@ export default function UserShoppingDashboard() {
         };
     }, []);
 
-    // Combine database categories and explicitly requested ones
-    const dynamicCategories = Array.from(new Set(products.map((p: Product) => p.category)));
-    const categories = ["All", ...new Set([...dynamicCategories, "Antiperspirant", "Roll on", "Car fragrance", "Home fragrance", "Scented candles", "Perfumes", "Perfume oil", "Body mist", "Body spray"])];
+    // Only show categories that actually have products
+    const dynamicCategories = Array.from(new Set(products.map((p: Product) => p.category))).filter(Boolean);
+    const categories = ["All", ...dynamicCategories];
 
     const filteredProducts = activeCategory === "All"
         ? products
@@ -178,11 +190,10 @@ export default function UserShoppingDashboard() {
 
                                         <div className="flex overflow-x-auto gap-4 md:gap-6 pb-8 no-scrollbar scroll-smooth snap-x snap-mandatory px-2 -mx-2">
                                             {categoryProducts.map((p: Product) => {
-                                                // Extract Discounted/Original Price
-                                                const match = p.description?.match(/\|\|ORIG_PRICE:(\d+)\|\|/);
-                                                const hasDiscount = !!match;
-                                                const originalPrice = match ? parseInt(match[1]) : (p.price || 0) * 1.3; // Default 30% fake markup if no orig
-                                                const discountPercent = Math.round(((originalPrice - (p.price || 0)) / originalPrice) * 100);
+                                                // Real discount using mapped original_price
+                                                const origPrice = p.original_price ? p.original_price : null;
+                                                const hasDiscount = origPrice !== null && origPrice > (p.price || 0);
+                                                const discountPercent = hasDiscount ? Math.round(((origPrice - (p.price || 0)) / origPrice) * 100) : 0;
 
                                                 return (
                                                     <Link href={`/product/${p.id}`} key={p.id} className="snap-start flex-shrink-0 w-[220px] md:w-[260px] bg-white rounded-[24px] p-4 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.1)] transition-all duration-500 group flex flex-col active:scale-95">
@@ -195,9 +206,9 @@ export default function UserShoppingDashboard() {
                                                             />
 
                                                             {/* Discount Badge */}
-                                                            {p.inStock && discountPercent > 0 && (
-                                                                <span className="absolute top-2 left-2 bg-[#D4AF37] text-black text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md shadow-lg z-10 animate-bounce">
-                                                                    -{discountPercent}%
+                                                            {p.inStock && hasDiscount && (
+                                                                <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shadow-lg z-10 animate-pulse">
+                                                                    -{discountPercent}% OFF
                                                                 </span>
                                                             )}
 
@@ -208,14 +219,17 @@ export default function UserShoppingDashboard() {
                                                             )}
                                                         </div>
                                                         <div className="flex-1 flex flex-col">
-                                                            <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 line-clamp-1">{p.name.split(' ')[0]}</span>
+                                                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                                <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-[#D4AF37]">{p.category}</span>
+                                                                {p.size && <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded-md">{p.size}</span>}
+                                                            </div>
                                                             <h3 className="text-sm font-black line-clamp-2 leading-tight text-zinc-900 group-hover:text-[#D4AF37] transition-colors" style={{ fontFamily: 'var(--font-playfair), serif' }}>{p.name}</h3>
 
                                                             <div className="mt-auto pt-4 flex flex-col">
                                                                 <div className="flex items-end gap-2 mb-1">
                                                                     <p className={`text-base font-black ${!p.inStock ? 'text-zinc-400' : 'text-zinc-900'}`}>₦{p.price?.toLocaleString()}</p>
-                                                                    {p.inStock && discountPercent > 0 && (
-                                                                        <p className="text-[10px] font-bold text-zinc-400 line-through mb-[3px]">₦{originalPrice.toLocaleString()}</p>
+                                                                    {p.inStock && hasDiscount && origPrice && (
+                                                                        <p className="text-[10px] font-bold text-zinc-400 line-through mb-[3px]">₦{origPrice.toLocaleString()}</p>
                                                                     )}
                                                                 </div>
 

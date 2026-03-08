@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, ShoppingBag, User, Menu, X, ArrowRight, BookOpen, ShieldCheck, Truck, CreditCard } from 'lucide-react';
 import Footer from '@/components/layout/Footer';
+import MemberNavbar from '@/components/layout/MemberNavbar';
 
 export default function Journal() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -40,44 +41,8 @@ export default function Journal() {
                 Smelling nice is our priority • Worldwide Quality Assurance
             </div>
 
-            {/* Navbar */}
-            <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-zinc-100 py-3 md:py-4">
-                <div className="container mx-auto px-4 flex items-center justify-between">
-                    <div className="flex items-center gap-10">
-                        <a href="/" className="group">
-                            <img src="/logo.png" alt="Wear Abbie" className="h-8 md:h-12 transition-transform duration-500 group-hover:scale-110" />
-                        </a>
-                        <div className="hidden lg:flex gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                            <a href="/" className="hover:text-[#D4AF37] transition-colors">Home</a>
-                            <a href="/shop" className="hover:text-[#D4AF37] transition-colors">Collections</a>
-                            <a href="/journal" className="text-zinc-900 border-b-2 border-[#D4AF37] pb-1">The Journal</a>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <div className="flex items-center gap-4 md:gap-6">
-                            <a href="/auth" className="hidden sm:block hover:text-[#D4AF37] transition-colors">
-                                <User className="w-6 h-6" />
-                            </a>
-                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-1.5 hover:bg-zinc-50 rounded-full transition-colors">
-                                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile Menu */}
-                {isMenuOpen && (
-                    <div className="lg:hidden bg-white border-b border-zinc-100 py-8 px-6 space-y-6">
-                        <div className="flex flex-col gap-6 text-[13px] font-black uppercase tracking-[0.2em]">
-                            <a href="/" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>Home</a>
-                            <a href="/shop" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>Collections</a>
-                            <a href="/journal" className="text-[#D4AF37]" onClick={() => setIsMenuOpen(false)}>The Journal</a>
-                            <a href="/auth" className="text-zinc-400 hover:text-zinc-900" onClick={() => setIsMenuOpen(false)}>Login / Register</a>
-                        </div>
-                    </div>
-                )}
-            </nav>
+            {/* Premium Unified Navbar */}
+            <MemberNavbar />
 
             <main className="flex-grow">
                 {/* Journal Hero */}

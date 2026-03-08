@@ -54,11 +54,15 @@ function ShopContent() {
                     id: p.id,
                     name: p.name,
                     price: p.price,
+                    original_price: p.original_price || null,
                     category: p.category,
                     image: p.image_url || p.image || '/logo.png',
                     inStock: p.stock > 0,
+                    stock: p.stock,
                     isCOD: p.is_cod,
-                    description: p.description
+                    description: p.description,
+                    size: p.size || '',
+                    type: p.type || '',
                 }));
 
                 setProducts(mappedProducts);
@@ -84,13 +88,15 @@ function ShopContent() {
                             name: payload.new.name,
                             brand: payload.new.brand,
                             price: payload.new.price,
+                            original_price: payload.new.original_price || null,
                             category: payload.new.category,
                             image: payload.new.image_url || payload.new.image || '/logo.png',
                             inStock: payload.new.stock > 0,
+                            stock: payload.new.stock,
                             isCOD: payload.new.is_cod,
                             description: payload.new.description,
-                            type: payload.new.type,
-                            size: payload.new.size
+                            type: payload.new.type || '',
+                            size: payload.new.size || ''
                         };
                         setProducts((current: Product[]) => [newProduct, ...current]);
                     } else if (payload.eventType === 'UPDATE') {
@@ -99,13 +105,15 @@ function ShopContent() {
                                 ...p,
                                 name: payload.new.name,
                                 price: payload.new.price,
+                                original_price: payload.new.original_price || null,
                                 category: payload.new.category,
                                 image: payload.new.image_url || payload.new.image || p.image,
                                 inStock: payload.new.stock > 0,
+                                stock: payload.new.stock,
                                 isCOD: payload.new.is_cod,
                                 description: payload.new.description,
-                                type: payload.new.type,
-                                size: payload.new.size
+                                type: payload.new.type || '',
+                                size: payload.new.size || ''
                             } : p)
                         );
                     } else if (payload.eventType === 'DELETE') {
@@ -252,14 +260,22 @@ function ShopContent() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-                            {paginated.map((p: Product) => (
+                            {paginated.map((p: Product) => {
+                                // Real discount: use original_price from mapped data
+                                const origPrice = p.original_price ? p.original_price : null;
+                                const hasDiscount = origPrice !== null && origPrice > p.price;
+                                const discountPercent = hasDiscount ? Math.round(((origPrice - p.price) / origPrice) * 100) : 0;
+
+                                return (
                                 <Link href={`/product/${p.id}`} key={p.id} className="bg-white rounded-[24px] md:rounded-[32px] p-3 md:p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.15)] transition-all duration-500 group relative flex flex-col h-full cursor-pointer">
                                     <div className="aspect-square bg-zinc-50 rounded-xl md:rounded-2xl mb-4 md:mb-6 flex items-center justify-center p-4 md:p-8 relative overflow-hidden group/image">
                                         <img src={p.image} alt={p.name} className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${!p.inStock ? 'opacity-50 grayscale' : ''}`} />
-                                        {/* Fake Discount Design */}
-                                        <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-red-500 text-white text-[7px] md:text-[9px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full shadow-lg z-10 animate-pulse">
-                                            -15% OFF
-                                        </div>
+                                        {/* Real Discount Badge */}
+                                        {hasDiscount && p.inStock && (
+                                            <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-red-500 text-white text-[7px] md:text-[9px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full shadow-lg z-10 animate-pulse">
+                                                -{discountPercent}% OFF
+                                            </div>
+                                        )}
                                         {p.isCOD && (
                                             <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-white/90 backdrop-blur-sm text-[7px] md:text-[8px] font-black uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-zinc-100 text-zinc-500 z-10">COD</span>
                                         )}
@@ -270,14 +286,17 @@ function ShopContent() {
                                         )}
                                     </div>
                                     <div className="flex-grow space-y-1 md:space-y-2 flex flex-col">
-                                        <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">{p.category}</span>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">{p.category}</span>
+                                            {p.size && <span className="text-[7px] md:text-[9px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded-md">{p.size}</span>}
+                                        </div>
                                         <h3 className="text-xs md:text-lg font-serif font-bold md:h-14 line-clamp-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>{p.name}</h3>
                                         <div className="mt-auto pt-2 md:pt-4 flex items-center justify-between">
                                             <div>
                                                 <p className="text-[7px] md:text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Price</p>
                                                 <div className="flex items-center gap-2">
                                                     <p className={`text-sm md:text-xl font-black ${!p.inStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{p.price.toLocaleString()}</p>
-                                                    {p.inStock && <p className="text-[9px] md:text-xs text-zinc-400 line-through font-medium">₦{(p.price * 1.15).toLocaleString()}</p>}
+                                                    {hasDiscount && p.inStock && <p className="text-[9px] md:text-xs text-zinc-400 line-through font-medium">₦{origPrice.toLocaleString()}</p>}
                                                 </div>
                                             </div>
                                             <div
@@ -295,7 +314,8 @@ function ShopContent() {
                                         </div>
                                     </div>
                                 </Link>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 

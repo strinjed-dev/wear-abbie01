@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, Users, User, Phone, MessageCircle, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag, Crown, Mail, MessageSquare, FileText } from 'lucide-react';
+import { LayoutDashboard, Package, Users, User, Phone, MessageCircle, Truck, Settings, LogOut, Edit3, BarChart3, Clock, CheckCircle2, Search, Bell, Plus, Image as ImageIcon, Database, Menu, Lock, ShieldCheck, ArrowRight, X, Upload, HeadphonesIcon, Gift, ShoppingBag, Crown, Mail, MessageSquare, FileText, Trash2, RotateCcw } from 'lucide-react';
 import { uploadImage, supabase, getSafeSession } from '@/lib/supabase';
-import { useCart, Product, Order } from '@/context/CartContext';
+import { useCart } from '@/context/CartContext';
+import type { Product, Order, Profile as UserProfile, OrderItem, CartItem, Notification as AppNotification } from '@/context/CartContext';
 import { syncCatalogToSupabase } from '@/app/actions/migrateImages';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
 
@@ -40,6 +41,7 @@ export default function AdminDashboard() {
     const [dispatchPhone, setDispatchPhone] = useState("");
     const [adminUser, setAdminUser] = useState<any>(null);
     const [savingSettings, setSavingSettings] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [newProduct, setNewProduct] = useState<any>({
         name: '',
@@ -298,42 +300,95 @@ export default function AdminDashboard() {
     const addOrUpdateProduct = async () => {
         const payload = editingProduct || newProduct;
 
-        let cleanDesc = payload.description || '';
-        cleanDesc = cleanDesc.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
-        const finalDesc = payload.original_price ? `${cleanDesc}\n||ORIG_PRICE:${payload.original_price}||` : cleanDesc;
+        if (!payload.name || !payload.price) {
+            alert('Please fill in at least the product name and price.');
+            return;
+        }
 
-        const { error } = await supabase
-            .from('products')
-            .upsert({
+        setIsSaving(true);
+        try {
+            // Auto-upload image if a file is selected but hasn't been uploaded yet
+            let imageUrl = url || payload.image_url || payload.image || '';
+            if (file && !url) {
+                setUploading(true);
+                try {
+                    const publicUrl = await uploadImage(file, `perfume-${Date.now()}`);
+                    imageUrl = publicUrl;
+                    setUrl(publicUrl);
+                } catch (uploadErr) {
+                    console.error('Auto-upload failed:', uploadErr);
+                    alert('Image upload failed. The product will be saved without a new image.');
+                } finally {
+                    setUploading(false);
+                }
+            }
+
+            // Clean description — remove any legacy ORIG_PRICE tags
+            const cleanDesc = (payload.description || '').replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
+
+            const originalPrice = payload.original_price ? parseFloat(payload.original_price.toString()) : null;
+
+            const upsertData: Record<string, any> = {
                 ...(editingProduct ? { id: editingProduct.id } : {}),
-                name: payload.name,
+                name: payload.name.trim(),
                 price: parseFloat(payload.price.toString()),
                 category: payload.category,
                 size: payload.size,
-                type: payload.type,
-                description: finalDesc,
-                image_url: url || payload.image_url, // Prefer new upload URL over payload
+                type: payload.type || 'Perfume',
+                description: cleanDesc,
+                image_url: imageUrl,
                 is_active: payload.is_active ?? true,
                 is_cod: payload.is_cod ?? true,
                 fragrance_notes: payload.fragrance_notes || '',
                 stock: parseInt(payload.stock.toString()),
-                image: url || payload.image_url || payload.image || '' // Explicitly set 'image' as well just in case
-            });
+                original_price: (originalPrice && originalPrice > 0) ? originalPrice : null
+            };
 
-        if (!error) {
-            alert(editingProduct ? "Product updated!" : "New product launched!");
-            setEditingProduct(null);
-            setNewProduct({ name: '', price: 0, category: 'Fragrance', size: '100ml', type: 'Perfume', description: '', stock: 1, image_url: '', fragrance_notes: '', is_active: true, is_cod: true, original_price: '' });
-            setUrl("");
-            setRefreshTrigger((p: number) => p + 1);
-        } else {
-            console.error("FULL SUPABASE PRODUCT ERROR:", {
-                message: error.message,
-                code: error.code,
-                details: error.details,
-                hint: error.hint
-            }, error);
-            alert(`Product Registry Error (${error.code || 'UNK'}): ${error.message}\n\nHint: ${error.hint || 'No hint available'}`);
+            // Try to upsert
+            let { error } = await supabase
+                .from('products')
+                .upsert(upsertData);
+
+            // Auto-retry: if a column doesn't exist, remove it and try again
+            if (error && error.code === 'PGRST204') {
+                const colMatch = error.message.match(/Could not find the '(\w+)' column/);
+                if (colMatch) {
+                    const badCol = colMatch[1];
+                    console.warn(`Column '${badCol}' not in DB, retrying without it...`);
+                    delete upsertData[badCol];
+                    const retry = await supabase.from('products').upsert(upsertData);
+                    error = retry.error;
+                }
+            }
+
+            if (!error) {
+                alert(editingProduct ? "✓ SUCCESS: Fragrance Updated!" : "✓ SUCCESS: Fragrance Registry Created!");
+                setEditingProduct(null);
+                setFile(null);
+                setNewProduct({ 
+                    name: '', 
+                    price: 0, 
+                    category: 'Fragrance', 
+                    size: '100ml', 
+                    type: 'Perfume', 
+                    description: '', 
+                    stock: 1, 
+                    image_url: '', 
+                    fragrance_notes: '', 
+                    is_active: true, 
+                    is_cod: true, 
+                    original_price: '' 
+                });
+                setUrl("");
+                setRefreshTrigger((p: number) => p + 1);
+            } else {
+                throw error;
+            }
+        } catch (error: any) {
+            console.error("SUPABASE ERROR:", error);
+            alert(`Registry Error (${error.code || 'UNK'}): ${error.message}\n\nHint: ${error.hint || 'Verify your database schema has the original_price column.'}`);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -753,8 +808,7 @@ export default function AdminDashboard() {
                         </div>
                     </>
                 )}
-
-                {activeTab === 'inventory' && (
+                        {activeTab === 'inventory' && (
                     <div className="space-y-12">
                         {/* Summary Stats Row */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -864,17 +918,35 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Category</label>
-                                        <select
-                                            className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all appearance-none"
-                                            value={editingProduct ? editingProduct.category : newProduct.category}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, category: e.target.value }) : setNewProduct({ ...newProduct, category: e.target.value })}
-                                        >
-                                            {["Antiperspirant", "Roll on", "Car fragrance", "Home fragrance", "Scented candles", "Perfumes", "Perfume oil", "Body mist", "Body spray", "Fragrance", "Boutique", "Oil", "Signature", "Luxe"].map(c => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                        </select>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Category (Type)</label>
+                                            <select
+                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all appearance-none"
+                                                value={editingProduct ? editingProduct.category : newProduct.category}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, category: e.target.value }) : setNewProduct({ ...newProduct, category: e.target.value })}
+                                            >
+                                                {["Antiperspirant", "Roll on", "Car fragrance", "Home fragrance", "Scented candles", "Perfumes", "Perfume oil", "Body mist", "Body spray", "Gift Sets", "Signature Luxe", "Exclusives"].map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Size / Vol</label>
+                                            <select
+                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all appearance-none"
+                                                value={editingProduct ? editingProduct.size : newProduct.size}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, size: e.target.value }) : setNewProduct({ ...newProduct, size: e.target.value })}
+                                            >
+                                                <option>5ml</option>
+                                                <option>10ml</option>
+                                                <option>20ml</option>
+                                                <option>30ml</option>
+                                                <option>50ml</option>
+                                                <option>100ml</option>
+                                                <option>Set / Multiple</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div>
@@ -886,37 +958,7 @@ export default function AdminDashboard() {
                                             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => editingProduct ? setEditingProduct({ ...editingProduct, description: e.target.value }) : setNewProduct({ ...newProduct, description: e.target.value })}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Size</label>
-                                            <select
-                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all appearance-none"
-                                                value={editingProduct ? editingProduct.size : newProduct.size}
-                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, size: e.target.value }) : setNewProduct({ ...newProduct, size: e.target.value })}
-                                            >
-                                                <option>5ml (Roll-on)</option>
-                                                <option>10ml</option>
-                                                <option>30ml</option>
-                                                <option>50ml</option>
-                                                <option>100ml</option>
-                                                <option>Custom</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Type</label>
-                                            <select
-                                                className="w-full bg-white border-2 border-zinc-100 rounded-2xl px-6 py-4 text-sm font-black text-zinc-900 outline-none focus:border-[#D4AF37] transition-all appearance-none"
-                                                value={editingProduct ? editingProduct.type : newProduct.type}
-                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => editingProduct ? setEditingProduct({ ...editingProduct, type: e.target.value }) : setNewProduct({ ...newProduct, type: e.target.value })}
-                                            >
-                                                <option>Spray</option>
-                                                <option>Perfume Oil</option>
-                                                <option>Extrait</option>
-                                                <option>Roll-on</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
+                                    
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="flex items-center gap-3 p-4 bg-white border border-zinc-100 rounded-2xl">
                                             <input
@@ -952,123 +994,194 @@ export default function AdminDashboard() {
                                     </div>
 
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Image Setup</label>
-                                        <div className="bg-white border border-zinc-100 rounded-2xl p-4 flex items-center gap-4">
-                                            {(url || (editingProduct && editingProduct.image_url)) && (
-                                                <div className="w-12 h-12 bg-zinc-50 rounded-xl overflow-hidden border border-zinc-100 flex-shrink-0">
-                                                    <img src={url || editingProduct?.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                                </div>
-                                            )}
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                id="admin-image-upload"
-                                                accept="image/*"
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                                    const f = e.target.files?.[0];
-                                                    if (f) setFile(f);
-                                                }}
-                                            />
-                                            <label htmlFor="admin-image-upload" className="w-12 h-12 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-300 hover:text-[#D4AF37] cursor-pointer border border-zinc-100 border-dashed transition-all">
-                                                <Upload size={18} />
-                                            </label>
-                                            <div className="flex-1">
-                                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 truncate max-w-[100px]">{file ? file.name : "Select Image"}</p>
-                                                <button onClick={() => handleUpload()} className="text-[8px] font-black text-[#D4AF37] uppercase tracking-widest underline disabled:opacity-50" disabled={!file || uploading}>
-                                                    {uploading ? "Uploading..." : (url ? "Update Image" : "Save Image")}
-                                                </button>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-2 px-2">Product Image</label>
+                                        <div className="bg-white border border-zinc-100 rounded-2xl p-4 space-y-3">
+                                            <div className="flex items-center gap-4">
+                                                {(url || file || (editingProduct && (editingProduct.image_url || editingProduct.image))) && (
+                                                    <div className="w-16 h-16 bg-zinc-50 rounded-xl overflow-hidden border border-zinc-100 flex-shrink-0">
+                                                        <img src={file ? URL.createObjectURL(file) : (url || editingProduct?.image_url || editingProduct?.image)} alt="Preview" className="w-full h-full object-cover" />
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
+                                                    id="admin-image-upload"
+                                                    accept="image/*"
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                        const f = e.target.files?.[0];
+                                                        if (f) {
+                                                            setFile(f);
+                                                            setUrl(''); 
+                                                        }
+                                                    }}
+                                                />
+                                                <label htmlFor="admin-image-upload" className="flex-1 bg-zinc-50 rounded-xl flex items-center justify-center gap-3 py-4 text-zinc-400 hover:text-[#D4AF37] cursor-pointer border border-zinc-100 border-dashed transition-all hover:border-[#D4AF37]">
+                                                    <Upload size={18} />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">
+                                                        {file ? file.name.substring(0, 20) : (url ? 'Change Image' : 'Choose Image')}
+                                                    </span>
+                                                </label>
                                             </div>
+                                            {file && !url && (
+                                                <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest text-center">
+                                                    ✓ Image will auto-upload when you save the product
+                                                </p>
+                                            )}
                                             {url && (
-                                                <button onClick={() => setUrl('')} className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
-                                                    Reset
-                                                </button>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">✓ Image uploaded</p>
+                                                    <button type="button" onClick={() => { setUrl(''); setFile(null); }} className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
+                                                        Remove
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={addOrUpdateProduct}
-                                        className="w-full bg-[#3E2723] text-white py-5 rounded-[20px] font-black uppercase tracking-widest text-[11px] shadow-xl shadow-black/10 hover:bg-black transition-all"
+                                        disabled={isSaving}
+                                        className={`w-full py-5 rounded-[20px] font-black uppercase tracking-widest text-[11px] shadow-xl shadow-black/10 transition-all flex items-center justify-center gap-3 ${isSaving ? 'bg-zinc-400 cursor-not-allowed' : 'bg-[#3E2723] text-white hover:bg-black'}`}
                                     >
-                                        {editingProduct ? 'Update Product' : 'Add to Catalog'}
+                                        {isSaving ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                                Refining Registry...
+                                            </>
+                                        ) : (
+                                            editingProduct ? 'Update Fragrance' : 'Launch New Fragrance'
+                                        )}
                                     </button>
+                                    
                                     {editingProduct && (
                                         <button
-                                            onClick={() => setEditingProduct(null)}
-                                            className="w-full text-zinc-400 font-black uppercase tracking-widest text-[10px] pt-2"
+                                            onClick={() => {
+                                                setEditingProduct(null);
+                                                setFile(null);
+                                                setUrl('');
+                                            }}
+                                            className="w-full text-zinc-400 font-black uppercase tracking-widest text-[10px] pt-2 hover:text-red-400 transition-colors"
                                         >
                                             Cancel Editing
                                         </button>
                                     )}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Product List Side */}
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="text-xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Product List</h3>
-                                    <div className="bg-zinc-50 px-4 py-2 rounded-full border border-zinc-100 flex items-center gap-2">
-                                        <Database className="w-3.5 h-3.5 text-[#D4AF37]" />
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{products.length} Products Active</span>
+                        {/* Product Grid Side */}
+                        <div className="mt-16 pt-16 border-t border-zinc-100">
+                            <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 text-[#D4AF37] font-black text-[10px] uppercase tracking-[0.4em] mb-4">
+                                        <Package className="w-3 h-3" /> Live Inventory
                                     </div>
+                                    <h3 className="text-3xl md:text-5xl font-serif font-black" style={{ fontFamily: 'var(--font-playfair), serif' }}>Wear Abbie <span className="italic font-light text-[#D4AF37]">Registry.</span></h3>
                                 </div>
-
-                                <div className="space-y-4 max-h-[1000px] overflow-y-auto pr-4 no-scrollbar">
-                                    {products.map((p: Product, idx: number) => (
-                                        <div key={idx} className="flex flex-col md:flex-row items-center gap-6 p-6 border border-zinc-100 rounded-[24px] bg-white hover:shadow-2xl hover:border-[#D4AF37] transition-all group">
-                                            <img src={p.image_url || '/logo.png'} className="w-20 h-20 rounded-2xl object-cover bg-zinc-50 border border-zinc-100" />
-                                            <div className="flex-grow w-full md:w-auto">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`w-2 h-2 rounded-full ${(parseInt((p.stock ?? 0).toString()) > 0) ? 'bg-emerald-500' : 'bg-red-400 animate-pulse'}`}></span>
-                                                    <h4 className="font-serif font-black text-lg truncate pr-4">{p.name}</h4>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2 md:gap-3">
-                                                    <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 px-2 md:px-3 py-1 rounded-full">{p.type}</span>
-                                                    <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 px-2 md:px-3 py-1 rounded-full">{p.size}</span>
-                                                    <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-[#D4AF37] border border-[#D4AF37]/30 px-2 md:px-3 py-1 rounded-full shrink-0">₦{parseFloat((p.price ?? 0).toString()).toLocaleString()}</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-zinc-50 md:border-transparent">
-                                                <button
-                                                    onClick={() => {
-                                                        const match = p.description?.match(/\|\|ORIG_PRICE:(\d+)\|\|/);
-                                                        const orig = match ? match[1] : '';
-                                                        const clean = p.description?.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
-                                                        setEditingProduct({ ...p, original_price: orig, description: clean });
-                                                    }}
-                                                    className="flex-1 md:flex-none p-3 bg-zinc-50 rounded-xl text-zinc-400 hover:text-zinc-900 transition-colors flex items-center justify-center"
-                                                >
-                                                    <Edit3 size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => toggleStock(p)}
-                                                    className={`flex-1 md:flex-none p-3 rounded-xl transition-all flex items-center justify-center ${(parseInt((p.stock ?? 0).toString()) > 0) ? 'bg-zinc-50 text-zinc-400 hover:text-[#D4AF37]' : 'bg-[#D4AF37]/10 text-[#D4AF37]'}`}
-                                                    title="Toggle Stock Level"
-                                                >
-                                                    <Package size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => p.id && deleteProduct(p.id)}
-                                                    className="flex-1 md:flex-none p-3 bg-red-50 rounded-xl text-red-300 hover:text-red-500 transition-colors flex items-center justify-center"
-                                                >
-                                                    <X size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-
-                                    {products.length === 0 && (
-                                        <div className="flex flex-col items-center justify-center p-20 border-2 border-dashed border-zinc-100 rounded-[30px] opacity-50">
-                                            <Package className="w-8 h-8 text-zinc-300 mb-4" />
-                                            <p className="font-black uppercase text-[10px] tracking-widest text-zinc-400">No products found in the catalog</p>
-                                        </div>
-                                    )}
+                                <div className="bg-white px-8 py-4 rounded-full border border-zinc-100 shadow-sm flex items-center gap-4">
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Total Catalog</span>
+                                        <span className="text-lg font-serif font-black">{products.length} SCENTS</span>
+                                    </div>
+                                    <div className="w-px h-8 bg-zinc-100"></div>
+                                    <button onClick={fetchInitialData} className="p-2 hover:bg-zinc-50 rounded-full transition-colors text-[#D4AF37]">
+                                        <Clock className={`w-5 h-5 ${isLoadingData ? 'animate-spin' : ''}`} />
+                                    </button>
                                 </div>
                             </div>
+
+                            {products.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center p-20 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-[50px] opacity-50">
+                                    <Package className="w-12 h-12 text-zinc-300 mb-4" />
+                                    <p className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Database is currently empty</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
+                                    {products.map((product: Product) => {
+                                        const origPrice = (product as { original_price?: number }).original_price ? parseFloat((product as { original_price?: number }).original_price!.toString()) : null;
+                                        const hasDiscount = origPrice !== null && origPrice > (product.price || 0);
+                                        const discountPercent = hasDiscount ? Math.round(((origPrice - (product.price || 0)) / origPrice) * 100) : 0;
+                                        const isOutOfStock = parseInt((product.stock ?? 0).toString()) <= 0;
+
+                                        return (
+                                            <div key={product.id} className="bg-white rounded-[32px] p-6 border border-zinc-100 hover:border-[#D4AF37] hover:shadow-[0_20px_50px_rgba(212,175,55,0.1)] transition-all duration-500 group relative flex flex-col h-full">
+                                                {/* Actions Overlay */}
+                                                <div className="absolute top-4 right-4 z-40 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => {
+                                                            const origFromDb = (product as { original_price?: number }).original_price;
+                                                            const clean = product.description?.replace(/\n?\|\|ORIG_PRICE:\d+\|\|/g, '').trim();
+                                                            setEditingProduct({ ...product, image_url: product.image_url || (product as { image?: string }).image || '', original_price: origFromDb, description: clean });
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                        className="w-10 h-10 bg-white shadow-xl rounded-full flex items-center justify-center text-[#D4AF37] hover:bg-[#D4AF37] hover:text-white transition-all scale-90 group-hover:scale-100"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => toggleStock(product)}
+                                                        className={`w-10 h-10 shadow-xl rounded-full flex items-center justify-center transition-all scale-90 group-hover:scale-100 ${isOutOfStock ? 'bg-red-50 text-red-500 hover:bg-emerald-500 hover:text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-red-500 hover:text-white'}`}
+                                                    >
+                                                        <Package size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                                            e.stopPropagation();
+                                                            if (confirm("Permanently archive this product?")) product.id && deleteProduct(product.id);
+                                                        }}
+                                                        className="w-10 h-10 bg-red-50 shadow-xl rounded-full flex items-center justify-center text-red-500 hover:bg-red-600 hover:text-white transition-all scale-90 group-hover:scale-100"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="aspect-square bg-zinc-50 rounded-2xl mb-6 flex items-center justify-center p-8 relative overflow-hidden">
+                                                    <img src={product.image_url || (product as { image?: string }).image || '/logo.png'} alt={product.name} className={`max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-700 ${isOutOfStock ? 'opacity-40 grayscale' : ''}`} />
+                                                    
+                                                    {hasDiscount && !isOutOfStock && (
+                                                        <div className="absolute top-4 left-4 bg-red-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg z-10">
+                                                            -{discountPercent}% OFF
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {isOutOfStock && (
+                                                        <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-20">
+                                                            <span className="text-[11px] tracking-widest uppercase font-black text-white bg-red-600 px-4 py-2 rounded-full transform shadow-2xl">Stock Empty</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-grow space-y-2 flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">{product.category}</span>
+                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 px-2 py-0.5 rounded-md">{product.size}</span>
+                                                    </div>
+                                                    <h3 className="text-lg font-serif font-black h-14 line-clamp-2" style={{ fontFamily: 'var(--font-playfair), serif' }}>{product.name}</h3>
+                                                    
+                                                    <div className="mt-auto pt-4 flex items-center justify-between border-t border-zinc-50">
+                                                        <div>
+                                                            <p className="text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">Registry Price</p>
+                                                            <div className="flex items-center gap-3">
+                                                                <p className={`text-xl font-black ${isOutOfStock ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>₦{parseFloat((product.price ?? 0).toString()).toLocaleString()}</p>
+                                                                {hasDiscount && !isOutOfStock && (
+                                                                    <p className="text-xs text-zinc-400 line-through font-medium">₦{origPrice!.toLocaleString()}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-[9px] font-black uppercase tracking-tighter text-zinc-400 mb-0.5">In Inventory</p>
+                                                            <p className={`text-sm font-black ${isOutOfStock ? 'text-red-500' : 'text-zinc-900'}`}>{product.stock} Units</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
-                )
-                }
+                )}
 
                 {
                     activeTab === 'users' && (
@@ -1083,7 +1196,7 @@ export default function AdminDashboard() {
                                         <span className="text-xs font-black text-[#D4AF37]">{users.length} USERS</span>
                                     </div>
                                     <div className="bg-[#D4AF37]/10 px-6 py-3 rounded-full border border-[#D4AF37]/20">
-                                        <span className="text-xs font-black text-[#D4AF37]">{users.filter((u: any) => u.is_premium).length} PREMIUM</span>
+                                        <span className="text-xs font-black text-[#D4AF37]">{users.filter((u: UserProfile) => u.is_premium).length} PREMIUM</span>
                                     </div>
                                 </div>
                             </div>
@@ -1097,7 +1210,7 @@ export default function AdminDashboard() {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                         const q = e.target.value.toLowerCase();
                                         if (!q) { fetchInitialData(); return; }
-                                        setUsers((prev: any[]) => prev.filter((u: any) =>
+                                        setUsers((prev: UserProfile[]) => prev.filter((u: UserProfile) =>
                                             (u.full_name || '').toLowerCase().includes(q) ||
                                             (u.email || '').toLowerCase().includes(q) ||
                                             (u.location || '').toLowerCase().includes(q)
@@ -1107,7 +1220,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[800px] overflow-y-auto pr-2 no-scrollbar">
-                                {users.filter((u: any) => u.full_name || u.email).slice(0, 100).map((u: any, idx: number) => (
+                                {users.filter((u: UserProfile) => u.full_name || u.email).slice(0, 100).map((u: UserProfile, idx: number) => (
                                     <div key={idx} className="p-6 border border-zinc-100 rounded-[30px] bg-zinc-50/30 hover:shadow-xl hover:border-[#D4AF37]/50 transition-all group relative overflow-hidden">
                                         {/* Premium Badge Indicator */}
                                         {u.is_premium && (
@@ -1144,7 +1257,7 @@ export default function AdminDashboard() {
                                                         const newRole = e.target.value;
                                                         const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', u.id);
                                                         if (!error) {
-                                                            setUsers((prev: any[]) => prev.map((user: any) => user.id === u.id ? { ...user, role: newRole } : user));
+                                                            setUsers((prev: UserProfile[]) => prev.map((user: UserProfile) => user.id === u.id ? { ...user, role: newRole } : user));
                                                         } else { alert('Failed to update role: ' + error.message); }
                                                     }}
                                                     className={`px-3 py-1 rounded-full text-[9px] font-black uppercase cursor-pointer outline-none border ${u.role === 'admin' ? 'bg-[#3E2723] text-[#D4AF37] border-[#3E2723]' : u.role === 'rider' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-zinc-500 border-zinc-200'}`}
@@ -1172,7 +1285,7 @@ export default function AdminDashboard() {
                                                     const newPremium = !u.is_premium;
                                                     const { error } = await supabase.from('profiles').update({ is_premium: newPremium }).eq('id', u.id);
                                                     if (!error) {
-                                                        setUsers((prev: any[]) => prev.map((user: any) => user.id === u.id ? { ...user, is_premium: newPremium } : user));
+                                                        setUsers((prev: UserProfile[]) => prev.map((user: UserProfile) => user.id === u.id ? { ...user, is_premium: newPremium } : user));
                                                     } else { alert('Failed to update premium status: ' + error.message); }
                                                 }}
                                                 className={`w-full py-3 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-2 ${u.is_premium ? 'bg-amber-50 text-amber-600 border border-amber-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200' : 'bg-zinc-50 text-zinc-400 border border-zinc-100 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'}`}
@@ -1196,7 +1309,7 @@ export default function AdminDashboard() {
                                                         if (!val) return;
                                                         const { error } = await supabase.from('profiles').update({ location: val }).eq('id', u.id);
                                                         if (!error) {
-                                                            setUsers((prev: any[]) => prev.map((user: any) => user.id === u.id ? { ...user, location: val } : user));
+                                                            setUsers((prev: UserProfile[]) => prev.map((user: UserProfile) => user.id === u.id ? { ...user, location: val } : user));
                                                             input.value = '';
                                                         } else { alert('Failed to set location: ' + error.message); }
                                                     }}
@@ -1254,7 +1367,7 @@ export default function AdminDashboard() {
                             {users.length === 0 && (
                                 <div className="flex flex-col items-center justify-center py-20 opacity-40">
                                     <Users size={48} className="text-zinc-200 mb-4" />
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">No users found</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">No users found</p>
                                 </div>
                             )}
                         </div>
@@ -1281,13 +1394,13 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-6">
-                            {allOrders.filter(o => (updatingDispatch === o.id) || (o.status !== 'delivered' && o.status !== 'cancelled')).length === 0 ? (
+                            {allOrders.filter((o: Order) => (updatingDispatch === o.id) || (o.status !== 'delivered' && o.status !== 'cancelled')).length === 0 ? (
                                 <div className="flex flex-col items-center justify-center p-20 bg-zinc-50 border border-zinc-100 rounded-[40px] opacity-50">
                                     <Truck className="w-12 h-12 text-zinc-200 mb-4" />
                                     <p className="font-black uppercase tracking-widest text-[10px] text-zinc-300">No active dispatches found</p>
                                 </div>
                             ) : (
-                                allOrders.filter(o => (updatingDispatch === o.id) || (o.status !== 'delivered' && o.status !== 'cancelled')).map((order: Order, idx: number) => (
+                                allOrders.filter((o: Order) => (updatingDispatch === o.id) || (o.status !== 'delivered' && o.status !== 'cancelled')).map((order: Order, idx: number) => (
                                     <div key={idx} className="bg-white border-2 border-zinc-50 p-8 rounded-[40px] hover:border-[#D4AF37]/30 transition-all group">
                                         <div className="flex flex-col md:flex-row justify-between gap-8">
                                             <div className="flex-1 space-y-4">
@@ -1312,7 +1425,7 @@ export default function AdminDashboard() {
 
                                                         {/* Ordered Items Preview */}
                                                         <div className="flex flex-wrap gap-2 mt-4">
-                                                            {order.items?.map((item: any, i: number) => (
+                                                            {order.items?.map((item: OrderItem, i: number) => (
                                                                 <div key={i} className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 rounded-full border border-zinc-100">
                                                                     <img src={item.image || '/logo.png'} alt="" className="w-6 h-6 object-contain" />
                                                                     <span className="text-[9px] font-black uppercase text-zinc-900">{item.name} <span className="text-zinc-300">x{item.quantity}</span></span>
@@ -1343,7 +1456,7 @@ export default function AdminDashboard() {
                                                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => assignRider(order.id, e.target.value)}
                                                                         >
                                                                             <option value="">Select Rider...</option>
-                                                                            {riders.map((r: any) => (
+                                                                            {riders.map((r: UserProfile) => (
                                                                                 <option key={r.id} value={r.id}>{r.full_name || r.email}</option>
                                                                             ))}
                                                                         </select>
@@ -1458,7 +1571,7 @@ export default function AdminDashboard() {
                                         placeholder="SEARCH BY NAME, EMAIL OR ID..."
                                         className="bg-transparent border-none outline-none text-[10px] ml-4 w-full font-black uppercase tracking-widest text-zinc-900"
                                         value={searchOrdersQuery}
-                                        onChange={(e) => setSearchOrdersQuery(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchOrdersQuery(e.target.value)}
                                     />
                                 </div>
                                 <button className="bg-zinc-900 text-white px-6 py-3 rounded-full font-black uppercase tracking-widest text-[9px] hover:bg-black transition-all flex items-center gap-2" onClick={() => alert("Digital archive generated safely.")}>
@@ -1481,21 +1594,21 @@ export default function AdminDashboard() {
                                     <CheckCircle2 size={14} className="text-emerald-500" />
                                 </div>
                                 <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1">Delivered</p>
-                                <p className="text-2xl font-black">{allOrders.filter(o => o.status === 'delivered').length}</p>
+                                <p className="text-2xl font-black">{allOrders.filter((o: Order) => o.status === 'delivered').length}</p>
                             </div>
                             <div className="bg-white p-6 rounded-[32px] border border-zinc-100 shadow-sm hover:border-[#D4AF37]/20 transition-all group">
                                 <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
                                     <Clock size={14} className="text-blue-500" />
                                 </div>
                                 <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1">In Pipeline</p>
-                                <p className="text-2xl font-black">{allOrders.filter(o => o.status === 'processing' || o.status === 'shipped').length}</p>
+                                <p className="text-2xl font-black">{allOrders.filter((o: Order) => o.status === 'processing' || o.status === 'shipped').length}</p>
                             </div>
                             <div className="bg-white p-6 rounded-[32px] border border-zinc-100 shadow-sm hover:border-[#D4AF37]/20 transition-all group">
                                 <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-amber-100 transition-colors">
                                     <Database size={14} className="text-amber-500" />
                                 </div>
                                 <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Registry Value</p>
-                                <p className="text-2xl font-black overflow-hidden truncate">₦{allOrders.reduce((sum, o) => sum + (Number(o.total_amount) || Number(o.total) || 0), 0).toLocaleString()}</p>
+                                <p className="text-2xl font-black overflow-hidden truncate">₦{allOrders.reduce((sum: number, o: Order) => sum + (Number(o.total_amount) || Number(o.total) || 0), 0).toLocaleString()}</p>
                             </div>
                         </div>
 
@@ -1513,7 +1626,7 @@ export default function AdminDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-50">
-                                        {allOrders.filter(o =>
+                                        {allOrders.filter((o: Order) =>
                                             !searchOrdersQuery ||
                                             o.profiles?.full_name?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.profiles?.email?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
@@ -1521,7 +1634,7 @@ export default function AdminDashboard() {
                                             o.contact_phone?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.tracking_code?.toLowerCase().includes(searchOrdersQuery.toLowerCase()) ||
                                             o.id.includes(searchOrdersQuery)
-                                        ).map((order: any) => (
+                                        ).map((order: Order) => (
                                             <tr key={order.id} className="group hover:bg-zinc-50/70 transition-all duration-300">
                                                 <td className="px-8 py-8">
                                                     <div className="space-y-1">
@@ -1529,14 +1642,14 @@ export default function AdminDashboard() {
                                                             {order.tracking_code || `ORD-${order.id.substring(0, 8).toUpperCase()}`}
                                                         </p>
                                                         <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">
-                                                            {new Date(order.created_at || order.date).toLocaleDateString()}
+                                                            {new Date(order.created_at || order.date || Date.now()).toLocaleDateString()}
                                                         </p>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-8">
                                                     <div className="flex flex-col gap-1">
                                                         <p className="text-[11px] font-black uppercase text-zinc-900 truncate max-w-[150px]">
-                                                            {order.profiles?.full_name || 'Guest Member'}
+                                                            {order.customer_name || order.profiles?.full_name || 'Guest Member'}
                                                         </p>
                                                         <p className="text-[9px] font-bold text-zinc-400 break-all max-w-[150px]">
                                                             {order.contact_email || order.profiles?.email || 'N/A'}
@@ -1551,7 +1664,7 @@ export default function AdminDashboard() {
                                                 <td className="px-8 py-8">
                                                     <div className="flex flex-col gap-3">
                                                         <div className="flex -space-x-4 group-hover:space-x-1 transition-all">
-                                                            {order.items?.map((item: any, i: number) => (
+                                                            {order.items?.map((item: OrderItem, i: number) => (
                                                                 <div key={i} className="w-10 h-10 rounded-xl bg-white border border-zinc-200 p-1 shadow-sm ring-4 ring-white overflow-hidden group/item relative hover:scale-110 transition-transform hover:z-20">
                                                                     <img src={item.image || item.image_url || '/logo.png'} className="w-full h-full object-contain" alt="" />
                                                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/item:opacity-100 flex items-center justify-center transition-opacity">
@@ -1570,7 +1683,7 @@ export default function AdminDashboard() {
                                                         ₦{(Number(order.total_amount || order.total) || 0).toLocaleString()}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${order.payment_status === 'completed' ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${['completed', 'paid'].includes(order.payment_status?.toLowerCase() || '') ? 'bg-emerald-500' : 'bg-red-400'}`} />
                                                         <p className="text-[8px] font-black uppercase tracking-widest text-[#D4AF37]">{order.payment_method || 'PENDING'}</p>
                                                     </div>
                                                 </td>
@@ -1592,7 +1705,7 @@ export default function AdminDashboard() {
                                                             View Details
                                                         </button>
                                                         <button
-                                                            onClick={(e) => {
+                                                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                                                                 e.stopPropagation();
                                                                 setUpdatingDispatch(order.id);
                                                                 setActiveTab('tracking');
@@ -1743,18 +1856,36 @@ export default function AdminDashboard() {
                                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">No new alerts</p>
                                     </div>
                                 ) : (
-                                    adminNotifications.map((notif: any) => (
-                                        <div key={notif.id} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-start gap-4">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${notif.type === 'order' ? 'bg-[#D4AF37]/10 text-[#D4AF37]' : 'bg-blue-50 text-blue-500'}`}>
-                                                {notif.type === 'order' ? <ShoppingBag size={18} /> : <Users size={18} />}
+                                    adminNotifications.map((notif: any) => {
+                                        const isAdminNotifType = (t: string) => {
+                                            switch (t) {
+                                                case 'order': return { icon: <ShoppingBag size={18} />, bg: 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20', label: 'New Order' };
+                                                case 'user': return { icon: <Users size={18} />, bg: 'bg-blue-50 text-blue-600 border-blue-100', label: 'New User' };
+                                                case 'payment': return { icon: <ShieldCheck size={18} />, bg: 'bg-emerald-50 text-emerald-600 border-emerald-100', label: 'Payment' };
+                                                case 'stock': return { icon: <Package size={18} />, bg: 'bg-red-50 text-red-600 border-red-100', label: 'Low Stock' };
+                                                default: return { icon: <Bell size={18} />, bg: 'bg-zinc-50 text-zinc-500 border-zinc-100', label: 'System' };
+                                            }
+                                        };
+                                        const style = isAdminNotifType(notif.type);
+
+                                        return (
+                                            <div key={notif.id} className="p-4 bg-white rounded-2xl border border-zinc-100 flex items-start gap-4 hover:shadow-md transition-all group">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${style.bg} group-hover:scale-110 transition-transform`}>
+                                                    {style.icon}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{style.label}</p>
+                                                        <p className="text-[8px] font-bold text-zinc-300 uppercase tracking-widest">{notif.created_at ? new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}</p>
+                                                    </div>
+                                                    <p className="text-xs font-black text-zinc-900 mb-1 leading-tight">{notif.message}</p>
+                                                    {notif.type === 'order' && (
+                                                        <button onClick={() => { setActiveTab('orders'); setIsNotificationOpen(false); }} className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest mt-1 hover:underline">View Order details</button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{notif.title}</p>
-                                                <p className="text-xs font-black text-zinc-900 mb-1 truncate">{notif.message}</p>
-                                                <p className="text-[9px] font-bold text-zinc-300 uppercase tracking-widest">{notif.created_at ? new Date(notif.created_at).toLocaleTimeString() : 'Just now'}</p>
-                                            </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                             <div className="p-4 border-t border-zinc-50">
@@ -1817,7 +1948,7 @@ export default function AdminDashboard() {
                             </h3>
                             <p className="text-zinc-500 text-sm font-medium mb-10">Manage your administrative contact and personal details.</p>
 
-                            <form className="space-y-6 max-w-2xl" onSubmit={async (e) => {
+                            <form className="space-y-6 max-w-2xl" onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
                                 e.preventDefault();
                                 setSavingSettings(true);
                                 const form = e.target as HTMLFormElement;
@@ -1926,6 +2057,21 @@ export default function AdminDashboard() {
                                     <button disabled={savingSettings} type="submit" className="w-full sm:w-auto bg-[#D4AF37] text-black py-5 px-10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-xl shadow-[#D4AF37]/20 disabled:opacity-50 flex items-center justify-center gap-3">
                                         {savingSettings ? "Saving Settings..." : "Save Admin Settings"}
                                         {!savingSettings && <ShieldCheck className="w-4 h-4" />}
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={async () => {
+                                            if (confirm("CRITICAL: This will clear all local session data and force a full re-authentication. Continue?")) {
+                                                localStorage.clear();
+                                                sessionStorage.clear();
+                                                await supabase.auth.signOut();
+                                                alert("Registry cache purged. Sending back to entry gate.");
+                                                window.location.href = "/";
+                                            }
+                                        }}
+                                        className="w-full sm:w-auto border border-red-200 text-red-500 py-5 px-10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <RotateCcw className="w-4 h-4" /> Hard Reset Session
                                     </button>
                                     {savingSettings && (
                                         <span className="text-[10px] font-bold text-[#D4AF37] animate-pulse uppercase tracking-widest">Applying registry changes...</span>

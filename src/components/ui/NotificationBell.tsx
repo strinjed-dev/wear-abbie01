@@ -1,28 +1,37 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, X, Package, ShieldCheck, Info, Tag } from 'lucide-react';
+import { Bell, X, Package, ShieldCheck, Info, Tag, Truck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 
 const typeIcon = (type: string) => {
     switch (type) {
         case 'order': return <Package className="w-4 h-4" />;
+        case 'delivery': return <Truck className="w-4 h-4" />;
         case 'promo': return <Tag className="w-4 h-4" />;
         case 'payment': return <ShieldCheck className="w-4 h-4" />;
+        case 'alert': return <Bell className="w-4 h-4" />;
+        case 'success': return <ShieldCheck className="w-4 h-4" />;
         case 'system': return <Info className="w-4 h-4" />;
         default: return <Info className="w-4 h-4" />;
     }
 };
+
 const typeBg = (type: string) => {
     switch (type) {
         case 'order': return 'bg-amber-50 text-amber-600 border-amber-100';
+        case 'delivery': return 'bg-blue-50 text-blue-600 border-blue-100';
         case 'promo': return 'bg-purple-50 text-purple-600 border-purple-100';
         case 'payment': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+        case 'alert': return 'bg-red-50 text-red-600 border-red-100';
+        case 'success': return 'bg-green-50 text-green-600 border-green-100';
         case 'system': return 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20';
         default: return 'bg-zinc-50 text-zinc-500 border-zinc-100';
     }
 };
+
+
 
 export default function NotificationBell() {
     const [open, setOpen] = useState(false);
@@ -85,7 +94,7 @@ export default function NotificationBell() {
                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300">No notifications yet</p>
                             </div>
                         ) : (
-                            notifications.map(n => (
+                            notifications.map((n: any) => (
                                 <div
                                     key={n.id}
                                     onClick={() => !n.is_read && markNotificationRead(n.id)}

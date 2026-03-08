@@ -252,8 +252,11 @@ export default function ProductDetailPage() {
                     {/* Right: Product Info */}
                     <div className="space-y-12 animate-in">
                         <header>
-                            <div className="flex items-center gap-3 mb-6">
+                            <div className="flex flex-wrap items-center gap-3 mb-6">
                                 <span className="bg-[#D4AF37]/10 text-[#D4AF37] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">{product.category}</span>
+                                {(product as any).size && (
+                                    <span className="bg-zinc-100 text-zinc-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-zinc-200">{(product as any).size}</span>
+                                )}
                                 <div className="flex items-center gap-1 text-zinc-900">
                                     {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-current" />)}
                                     <span className="text-[10px] font-bold text-zinc-400 ml-2 uppercase tracking-widest">Authentic Product</span>
@@ -263,13 +266,12 @@ export default function ProductDetailPage() {
                             <div className="flex items-center gap-6">
                                 <p className="text-3xl md:text-5xl font-black">₦{product.price.toLocaleString()}</p>
                                 {(() => {
-                                    const match = product.description?.match(/\|\|ORIG_PRICE:(\d+)\|\|/);
-                                    if (match) {
-                                        const originalPrice = parseInt(match[1]);
-                                        const discountPercent = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+                                    const origPrice = (product as any).original_price ? parseFloat((product as any).original_price) : null;
+                                    if (origPrice && origPrice > product.price) {
+                                        const discountPercent = Math.round(((origPrice - product.price) / origPrice) * 100);
                                         return (
                                             <div className="flex items-center gap-3">
-                                                <p className="text-lg md:text-2xl text-zinc-400 line-through font-bold">₦{originalPrice.toLocaleString()}</p>
+                                                <p className="text-lg md:text-2xl text-zinc-400 line-through font-bold">₦{origPrice.toLocaleString()}</p>
                                                 <span className="bg-zinc-900 text-[#D4AF37] px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest animate-pulse">Save {discountPercent}%</span>
                                             </div>
                                         );

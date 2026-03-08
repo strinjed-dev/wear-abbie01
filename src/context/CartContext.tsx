@@ -3,9 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { supabase, getSafeSession } from "@/lib/supabase";
 
-import { Product, CartItem, Order, Notification } from "@/lib/types";
+import { Product, CartItem, Order, Notification, Profile, OrderItem } from "@/lib/types";
 
-export type { Product, CartItem, Order, Notification };
+export type { Product, CartItem, Order, Notification, Profile, OrderItem };
 
 interface CartContextType {
     cart: CartItem[];
@@ -14,7 +14,8 @@ interface CartContextType {
     updateQuantity: (productId: string, quantity: number) => void;
     clearCart: () => void;
     orders: Order[];
-    placeOrder: (customerInfo: any) => Promise<{ tracking_code?: string; order_id?: string; total?: number }>;
+    placeOrder: (customerInfo: any, options?: { draftOnly?: boolean }) => Promise<{ tracking_code?: string; order_id?: string; total?: number; orderData?: any }>;
+    finalizeOrder: (preparedData: any) => Promise<any>;
     isCartOpen: boolean;
     setIsCartOpen: (isOpen: boolean) => void;
     isInitialized: boolean;
@@ -50,7 +51,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const fetchOrders = useCallback(async (uid?: string) => {
         const targetUid = uid || (await getSafeSession()).data.session?.user?.id;
-        
+
         if (targetUid) {
             const { data: dbOrders } = await supabase
                 .from('orders')
@@ -267,7 +268,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const clearCart = () => setCart([]);
 
-    const placeOrder = async (customerInfo: any): Promise<{ tracking_code?: string; order_id?: string; total?: number }> => {
+    const placeOrder = async (customerInfo: any, options: { draftOnly?: boolean } = {}): Promise<{ tracking_code?: string; order_id?: string; total?: number; orderData?: any }> => {
         // Calculate total with safety checks
         const subtotal = cart.reduce((sum: number, item: CartItem) => {
             const price = Number(item.price) || 0;
@@ -306,7 +307,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const rand = Math.floor(Math.random() * 900000 + 100000);
         const generatedTrackingCode = `WA-${year}-${rand}`;
 
-        // Prepare order data — include BOTH possible column names for maximum compatibility
+        // Prepare order data
         const orderData: Record<string, any> = {
             user_id: session?.user?.id || null,
             customer_name: `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`.trim() || null,
@@ -325,37 +326,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
             items: cart,
         };
 
-        // Try primary insert
-        let { data: insertedOrder, error: insertError } = await supabase
-            .from('orders')
-            .insert([orderData])
-            .select('*')
-            .maybeSingle();
+        if (options.draftOnly) {
+            return { tracking_code: generatedTrackingCode, total, orderData };
+        }
 
-        // If insert failed due to unknown column, retry without the problematic field
-        if (insertError && insertError.message?.includes('column')) {
-            console.warn("Retrying order insert with alternative schema:", insertError.message);
-            // Robust retry: extract the missing column name from the error message and remove it
-            const matches = insertError.message.match(/column "(.+)" of relation/);
-            const problematicColumn = matches ? matches[1] : null;
-            
-            const altData = { ...orderData };
-            if (problematicColumn && altData.hasOwnProperty(problematicColumn)) {
-                delete altData[problematicColumn];
-            } else {
-                // Fallback for hardcoded cases if regex fails
-                if (insertError.message.includes('"total"')) delete altData.total;
-                if (insertError.message.includes('"total_amount"')) delete altData.total_amount;
-                if (insertError.message.includes('"customer_name"')) delete altData.customer_name;
-            }
+        // Resilient insert: auto-remove columns the DB doesn't recognize
+        let insertedOrder: any = null;
+        let insertError: any = null;
+        let attempts = 0;
+        const maxAttempts = 5; // Prevent infinite loops
+        let currentData = { ...orderData };
 
-            const retryResult = await supabase
+        while (attempts < maxAttempts) {
+            attempts++;
+            const result = await supabase
                 .from('orders')
-                .insert([altData])
+                .insert([currentData])
                 .select('*')
                 .maybeSingle();
-            insertedOrder = retryResult.data;
-            insertError = retryResult.error;
+
+            insertedOrder = result.data;
+            insertError = result.error;
+
+            // If it works or fails for a non-column reason, stop
+            if (!insertError || !insertError.message?.includes('column')) {
+                break;
+            }
+
+            // Extract the missing column name and remove it
+            const colMatch = insertError.message.match(/Could not find the '(\w+)' column/);
+            if (colMatch) {
+                const badCol = colMatch[1];
+                console.warn(`Order: column '${badCol}' not in DB, retrying without it (attempt ${attempts})...`);
+                delete currentData[badCol];
+            } else {
+                break; // Can't parse the column name, give up
+            }
         }
 
         if (insertError) {
@@ -383,10 +389,68 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return { tracking_code: trackingCode, order_id: orderId, total };
     };
 
+    const finalizeOrder = async (preparedData: any) => {
+        let currentData = { ...preparedData };
+        let insertedOrder: any = null;
+        let insertError: any = null;
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        while (attempts < maxAttempts) {
+            attempts++;
+            const result = await supabase
+                .from('orders')
+                .insert([currentData])
+                .select('*')
+                .maybeSingle();
+
+            insertedOrder = result.data;
+            insertError = result.error;
+
+            if (!insertError || !insertError.message?.includes('column')) break;
+
+            const colMatch = insertError.message.match(/Could not find the '(\w+)' column/);
+            if (colMatch) {
+                const badCol = colMatch[1];
+                delete currentData[badCol];
+            } else break;
+        }
+
+        if (insertError) throw new Error(insertError.message);
+
+        // Deduct stock
+        if (insertedOrder && insertedOrder.items) {
+            for (const item of insertedOrder.items) {
+                const { data: p } = await supabase.from('products').select('stock').eq('id', item.id).maybeSingle();
+                if (p) {
+                    const newStock = Math.max(0, (p.stock || 0) - item.quantity);
+                    await supabase.from('products').update({ stock: newStock }).eq('id', item.id);
+                }
+            }
+        }
+
+        if (userId) {
+            fetchOrders();
+        } else {
+            const guestOrders = JSON.parse(localStorage.getItem("wear_abbie_guest_orders") || "[]");
+            guestOrders.unshift({
+                tracking_code: insertedOrder.tracking_code,
+                order_id: insertedOrder.id,
+                date: new Date().toISOString(),
+                total: insertedOrder.total,
+                items: insertedOrder.items
+            });
+            localStorage.setItem("wear_abbie_guest_orders", JSON.stringify(guestOrders));
+        }
+
+        clearCart();
+        return insertedOrder;
+    };
+
     return (
         <CartContext.Provider value={{
             cart, addToCart, removeFromCart, updateQuantity, clearCart,
-            orders, placeOrder,
+            orders, placeOrder, finalizeOrder,
             isCartOpen, setIsCartOpen,
             isInitialized,
             searchQuery, setSearchQuery,

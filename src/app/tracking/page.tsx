@@ -5,21 +5,20 @@ import { Truck, Search, Package, MapPin, Clock, ArrowRight, ShieldCheck, CheckCi
 import Footer from '@/components/layout/Footer';
 import MemberNavbar from '@/components/layout/MemberNavbar';
 import { supabase } from '@/lib/supabase';
+import { Order, Product } from '@/lib/types';
 
-const statusSteps = ['pending', 'confirmed', 'dispatched', 'in_transit', 'delivered'];
+const statusSteps = ['pending', 'processing', 'shipped', 'delivered'];
 const statusLabels: Record<string, string> = {
     pending: 'Order Received',
-    confirmed: 'Order Confirmed',
-    dispatched: 'Dispatched from Hub',
-    in_transit: 'Out for Delivery',
+    processing: 'Order Confirmed',
+    shipped: 'Out for Delivery',
     delivered: 'Delivered ✓',
     cancelled: 'Cancelled',
 };
 const statusColor: Record<string, string> = {
     pending: 'text-amber-600 bg-amber-50 border-amber-100',
-    confirmed: 'text-blue-600 bg-blue-50 border-blue-100',
-    dispatched: 'text-purple-600 bg-purple-50 border-purple-100',
-    in_transit: 'text-orange-600 bg-orange-50 border-orange-100',
+    processing: 'text-blue-600 bg-blue-50 border-blue-100',
+    shipped: 'text-orange-600 bg-orange-50 border-orange-100',
     delivered: 'text-emerald-600 bg-emerald-50 border-emerald-100',
     cancelled: 'text-red-600 bg-red-50 border-red-100',
 };
@@ -27,7 +26,7 @@ const statusColor: Record<string, string> = {
 export default function TrackingPage() {
     const [inputCode, setInputCode] = useState("");
     const [isSearching, setIsSearching] = useState(false);
-    const [trackData, setTrackData] = useState<any>(null);
+    const [trackData, setTrackData] = useState<Order | null>(null);
     const [error, setError] = useState("");
     const [guestOrders, setGuestOrders] = useState<any[]>([]);
 
@@ -51,40 +50,42 @@ export default function TrackingPage() {
         setTrackData(null);
 
         const code = inputCode.trim().toUpperCase();
-
         try {
-            // First try finding by tracking_code exactly
-            let { data, error: dbError } = await supabase
+            // Broad search for resiliency
+            const { data, error: dbError } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('tracking_code', code)
-                .maybeSingle();
+                .or(`tracking_code.eq.${code},id.eq.${code}`)
+                .limit(1);
 
             if (dbError) throw dbError;
 
-            // If not found, try by ID if it looks like a UUID
-            if (!data && code.length > 20) {
-                const { data: byId, error: idError } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('id', code)
-                    .maybeSingle();
-                if (idError) throw idError;
-                data = byId;
-            }
+            if (!data || data.length === 0) {
+                // Secondary fallback search (partial match if code is long)
+                if (code.length > 5) {
+                    const { data: partialData } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .ilike('tracking_code', `%${code}%`)
+                        .limit(1);
+                    
+                    if (partialData && partialData.length > 0) {
+                        setTrackData(partialData[0] as OrderData);
+                        return;
+                    }
+                }
 
-            if (!data) {
                 // Check guest localStorage orders
-                const guest = guestOrders.find((o: any) => o.tracking_code?.toUpperCase() === code);
+                const guest = guestOrders.find((o: Order) => o.tracking_code?.toUpperCase().includes(code) || o.id?.toUpperCase().includes(code));
                 if (guest) {
-                    setTrackData({ ...guest, isGuest: true });
+                    setTrackData({ ...guest, isGuest: true } as any);
                 } else {
-                    setError("Order not found. Please check your code or contact support on WhatsApp.");
+                    setError("Order not found. Please check your tracking code (e.g. WA-2025-XXXXXX) or reach out to us on WhatsApp.");
                 }
                 return;
             }
 
-            setTrackData(data);
+            setTrackData(data[0] as Order);
         } catch (err: any) {
             console.error("Tracking Error:", err);
             setError("Something went wrong while fetching your order. Please try again or contact support.");
@@ -135,7 +136,8 @@ export default function TrackingPage() {
                                         required
                                         className="w-full bg-white border border-zinc-100 rounded-full px-16 py-6 text-sm font-medium focus:border-[#D4AF37] focus:shadow-xl focus:shadow-[#D4AF37]/5 outline-none transition-all uppercase"
                                         value={inputCode}
-                                        onChange={(e) => setInputCode(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+setInputCode(e.target.value)}}
                                     />
                                 </div>
                             </div>
@@ -165,14 +167,14 @@ export default function TrackingPage() {
                             <div className="mt-10">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">Recent Orders on This Device</p>
                                 <div className="space-y-3">
-                                    {guestOrders.slice(0, 3).map((o: any, i: number) => (
+                                    {guestOrders.slice(0, 3).map((o: Order, i: number) => (
                                         <button
                                             key={i}
                                             onClick={() => setInputCode(o.tracking_code || '')}
                                             className="w-full text-left bg-white border border-zinc-100 rounded-[20px] px-5 py-4 hover:border-[#D4AF37] transition-all group"
                                         >
                                             <p className="text-xs font-black text-zinc-800 group-hover:text-[#D4AF37] transition-colors">{o.tracking_code}</p>
-                                            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{new Date(o.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                                            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{new Date(o.date || '').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                                         </button>
                                     ))}
                                 </div>
